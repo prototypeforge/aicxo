@@ -9,6 +9,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-aicxo_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aicxo_password}
       POSTGRES_DB: ${POSTGRES_DB:-aicxo_users}
+    ports:
+      - "${POSTGRES_EXTERNAL_PORT:-60432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -29,6 +31,8 @@ services:
       # MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-}
       # MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-}
       MONGO_INITDB_DATABASE: ${MONGO_DB:-aicxo_documents}
+    ports:
+      - "${MONGO_EXTERNAL_PORT:-60017}:27017"
     volumes:
       - mongo_data:/data/db
     networks:
@@ -49,8 +53,8 @@ services:
     environment:
       # Application
       - APP_ENV=${APP_ENV:-development}
-      - APP_URL=${APP_URL:-http://localhost:3000}
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      - APP_URL=${APP_URL:-http://localhost:53000}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:53000,http://localhost:5173}
       # PostgreSQL
       - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
       - POSTGRES_PORT=${POSTGRES_PORT:-5432}
@@ -97,9 +101,9 @@ services:
     container_name: aicxo-frontend
     environment:
       - BACKEND_HOST=${BACKEND_HOST:-backend}
-      - BACKEND_PORT=${BACKEND_PORT:-8000}
+      - BACKEND_PORT=${BACKEND_PORT:-58000}
     ports:
-      - "${FRONTEND_PORT:-3000}:80"
+      - "${FRONTEND_PORT:-53000}:80"
     networks:
       - aicxo-network
     depends_on:
