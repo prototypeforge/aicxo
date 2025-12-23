@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for User Management
+  postgres:
+    image: postgres:15-alpine
+    container_name: aicxo-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aicxo_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aicxo_password}
+      POSTGRES_DB: ${POSTGRES_DB:-aicxo_users}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - aicxo-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aicxo_user} -d ${POSTGRES_DB:-aicxo_users}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # MongoDB for Document Storage
+  mongodb:
+    image: mongo:7
+    container_name: aicxo-mongodb
+    environment:
+      # Uncomment for MongoDB authentication
+      # MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-}
+      # MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-aicxo_documents}
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - aicxo-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: aicxo-backend
+    environment:
+      # Application
+      - APP_ENV=${APP_ENV:-development}
+      - APP_URL=${APP_URL:-http://localhost:3000}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      # PostgreSQL
+      - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_USER=${POSTGRES_USER:-aicxo_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-aicxo_password}
+      - POSTGRES_DB=${POSTGRES_DB:-aicxo_users}
+      # MongoDB
+      - MONGO_URI=${MONGO_URI:-mongodb://mongodb:27017}
+      - MONGO_DB=${MONGO_DB:-aicxo_documents}
+      # Security
+      - SECRET_KEY=${SECRET_KEY:-your-super-secret-key-change-in-production}
+      - ALGORITHM=${ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      # OpenAI
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - DEFAULT_AI_MODEL=${DEFAULT_AI_MODEL:-gpt-4o-mini}
+      # Default Admin
+      - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL:-admin@aicxo.com}
+      - DEFAULT_ADMIN_USERNAME=${DEFAULT_ADMIN_USERNAME:-admin}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-admin123}
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # Rate Limiting
+      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
+      # File Uploads
+      - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-10}
+      - ALLOWED_EXTENSIONS=${ALLOWED_EXTENSIONS:-.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.pptx,.ppt}
+    networks:
+      - aicxo-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-}
+    container_name: aicxo-frontend
+    environment:
+      - BACKEND_HOST=${BACKEND_HOST:-backend}
+      - BACKEND_PORT=${BACKEND_PORT:-8000}
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    networks:
+      - aicxo-network
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+networks:
+  aicxo-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  mongo_data:
