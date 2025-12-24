@@ -137,13 +137,14 @@ async def create_meeting(
         }
         await db.opinions.insert_one(opinion_doc)
     
-    # Generate chair's summary
+    # Generate chair's summary (pass company files for vision models)
     chair_result = await generate_chair_summary(
         meeting_data.question,
         meeting_data.context,
         opinions,
         current_user.id,
-        meeting_id
+        meeting_id,
+        company_files
     )
     
     # Calculate total tokens
@@ -317,13 +318,14 @@ async def regenerate_meeting(
         }
         await db.opinions.insert_one(opinion_doc)
     
-    # Generate chair's summary
+    # Generate chair's summary (pass company files for vision models)
     chair_result = await generate_chair_summary(
         meeting['question'],
         meeting.get('context'),
         opinions,
         meeting_user_id,
-        meeting_id
+        meeting_id,
+        company_files
     )
     
     # Reprocess all follow-up questions with new opinions

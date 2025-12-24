@@ -9,7 +9,39 @@ import Input from '../../components/Input';
 import api from '../../api/axios';
 import { Agent, AgentWeights } from '../../types';
 
-const MODELS = ['gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini', 'gpt-3.5-turbo'];
+const MODELS = [
+  // GPT-5.x series
+  'gpt-5.2',
+  'gpt-5.2-instant',
+  'gpt-5.2-thinking',
+  'gpt-5.1',
+  'gpt-5.1-instant', 
+  'gpt-5.1-thinking',
+  'gpt-5',
+  // GPT-4.5 series
+  'gpt-4.5',
+  'gpt-4.5-preview',
+  // GPT-4.1 series
+  'gpt-4.1',
+  'gpt-4.1-mini',
+  'gpt-4.1-nano',
+  // GPT-4o series
+  'gpt-4o',
+  'gpt-4o-mini',
+  // GPT-4 Turbo
+  'gpt-4-turbo',
+  // GPT-4 base
+  'gpt-4',
+  // GPT-3.5
+  'gpt-3.5-turbo',
+  // o-series reasoning models
+  'o1',
+  'o1-preview',
+  'o1-mini',
+  'o3',
+  'o3-mini',
+  'o4-mini',
+];
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#06b6d4', '#84cc16'];
 
 const defaultWeights: AgentWeights = {
@@ -25,7 +57,7 @@ const defaultAgent = {
   role: '',
   system_prompt: '',
   weights: defaultWeights,
-  model: 'gpt-4',
+  model: 'gpt-4o-mini',
   avatar_color: '#6366f1',
   is_active: true,
 };
@@ -93,7 +125,7 @@ export default function AdminAgents() {
     setChairFormData({
       name: chair?.name || 'Board Chair',
       system_prompt: chair?.system_prompt || '',
-      model: chair?.model || 'gpt-4',
+      model: chair?.model || 'gpt-4o-mini',
       avatar_color: chair?.avatar_color || '#f59e0b',
     });
     setShowChairForm(true);

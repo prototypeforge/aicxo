@@ -25,5 +25,13 @@ python-dotenv==1.0.0
 aiofiles==23.2.1
 email-validator==2.1.0
 
+# File Processing
+pypdf==4.0.1
+python-docx==1.1.0
+openpyxl==3.1.2
+pandas==2.1.4
+Pillow==10.2.0
+pytesseract==0.3.10
+
 # CORS
 starlette==0.35.1
