@@ -180,6 +180,16 @@ def supports_file_input(model: str) -> bool:
     return False
 
 
+def uses_max_completion_tokens(model: str) -> bool:
+    """Check if a model uses max_completion_tokens instead of max_tokens."""
+    # Newer models (GPT-5.x, GPT-4.5, GPT-4.1, o-series) use max_completion_tokens
+    if model.startswith("gpt-5") or model.startswith("gpt-4.5") or model.startswith("gpt-4.1"):
+        return True
+    if model.startswith("o1") or model.startswith("o3") or model.startswith("o4"):
+        return True
+    return False
+
+
 def is_image_file(mime_type: str) -> bool:
     """Check if a MIME type is an image."""
     return mime_type in IMAGE_MIME_TYPES or mime_type.startswith("image/")
@@ -432,8 +442,13 @@ Please provide your professional opinion as the {agent['role']}. Remember to res
                 {"role": "user", "content": user_content}
             ],
             "temperature": 0.7,
-            "max_tokens": 2000
         }
+        
+        # Use appropriate token limit parameter based on model
+        if uses_max_completion_tokens(model):
+            request_params["max_completion_tokens"] = 2000
+        else:
+            request_params["max_tokens"] = 2000
         
         if use_json_mode:
             request_params["response_format"] = {"type": "json_object"}
@@ -554,8 +569,13 @@ Please synthesize these opinions and provide your recommendation as Chair of the
                 {"role": "user", "content": user_content}
             ],
             "temperature": 0.7,
-            "max_tokens": 3000
         }
+        
+        # Use appropriate token limit parameter based on model
+        if uses_max_completion_tokens(model):
+            request_params["max_completion_tokens"] = 3000
+        else:
+            request_params["max_tokens"] = 3000
         
         if use_json_mode:
             request_params["response_format"] = {"type": "json_object"}
