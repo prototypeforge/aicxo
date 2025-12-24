@@ -12,8 +12,8 @@ from services.file_extraction import extract_content_from_file, get_supported_ex
 
 router = APIRouter(prefix="/api/files", tags=["Company Files"])
 
-# Maximum file size (10MB)
-MAX_FILE_SIZE = 10 * 1024 * 1024
+# Maximum file size (100MB)
+MAX_FILE_SIZE = 100 * 1024 * 1024
 
 # Image MIME types that should be stored as raw data for vision models
 IMAGE_MIME_TYPES = {
