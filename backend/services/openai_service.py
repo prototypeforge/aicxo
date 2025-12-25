@@ -469,6 +469,15 @@ Please provide your professional opinion as the {agent['role']}. Remember to res
             )
         
         response_text = response.choices[0].message.content
+        
+        # Check for empty or None response
+        if not response_text or not response_text.strip():
+            # Check if there's a refusal
+            refusal = getattr(response.choices[0].message, 'refusal', None)
+            if refusal:
+                raise ValueError(f"Model refused to respond: {refusal}")
+            raise ValueError("Model returned an empty response")
+        
         if use_json_mode:
             result = json.loads(response_text)
         else:
@@ -596,6 +605,14 @@ Please synthesize these opinions and provide your recommendation as Chair of the
             )
         
         response_text = response.choices[0].message.content
+        
+        # Check for empty or None response
+        if not response_text or not response_text.strip():
+            refusal = getattr(response.choices[0].message, 'refusal', None)
+            if refusal:
+                raise ValueError(f"Model refused to respond: {refusal}")
+            raise ValueError("Model returned an empty response")
+        
         if use_json_mode:
             result = json.loads(response_text)
         else:
