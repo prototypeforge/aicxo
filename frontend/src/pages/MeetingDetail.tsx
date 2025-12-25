@@ -31,7 +31,7 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import OpinionCard from '../components/OpinionCard';
 import api from '../api/axios';
-import { Meeting, OpinionVersion, DebugLogEntry } from '../types';
+import { Meeting, OpinionVersion } from '../types';
 import { useAuthStore } from '../store/authStore';
 
 interface FollowUpQuestion {
