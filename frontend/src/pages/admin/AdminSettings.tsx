@@ -17,6 +17,7 @@ export default function AdminSettings() {
   const [apiKey, setApiKey] = useState('');
   const [agentMaxTokens, setAgentMaxTokens] = useState('2000');
   const [chairMaxTokens, setChairMaxTokens] = useState('3000');
+  const [pollingInterval, setPollingInterval] = useState('2000');
 
   useEffect(() => {
     fetchSettings();
@@ -32,6 +33,9 @@ export default function AdminSettings() {
       }
       if (response.data.chair_max_tokens) {
         setChairMaxTokens(response.data.chair_max_tokens);
+      }
+      if (response.data.polling_interval) {
+        setPollingInterval(response.data.polling_interval);
       }
     } catch (error) {
       console.error('Failed to fetch settings:', error);
@@ -73,11 +77,18 @@ export default function AdminSettings() {
       return;
     }
 
+    const pollingMs = parseInt(pollingInterval);
+    if (isNaN(pollingMs) || pollingMs < 500 || pollingMs > 30000) {
+      toast.error('Polling interval must be between 500 and 30000 ms');
+      return;
+    }
+
     setSavingTokenLimits(true);
     try {
       await api.put('/api/admin/settings', {
         agent_max_tokens: agentTokens.toString(),
-        chair_max_tokens: chairTokens.toString()
+        chair_max_tokens: chairTokens.toString(),
+        polling_interval: pollingMs.toString()
       });
       toast.success('Token limits saved successfully');
       fetchSettings();
@@ -239,9 +250,30 @@ export default function AdminSettings() {
               </p>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-obsidian-300 mb-2">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4" />
+                  Live Update Polling Interval (ms)
+                </div>
+              </label>
+              <input
+                type="number"
+                min="500"
+                max="30000"
+                step="500"
+                value={pollingInterval}
+                onChange={(e) => setPollingInterval(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-obsidian-800/50 border border-obsidian-700 text-white placeholder-obsidian-500 focus:outline-none focus:ring-2 focus:ring-sapphire-400/50 focus:border-sapphire-400/50"
+              />
+              <p className="mt-1 text-xs text-obsidian-500">
+                How often to check for updates during regeneration (default: 2000ms = 2 seconds)
+              </p>
+            </div>
+
             <Button onClick={handleSaveTokenLimits} loading={savingTokenLimits}>
               <Save className="w-4 h-4" />
-              Save Token Limits
+              Save Settings
             </Button>
           </div>
 

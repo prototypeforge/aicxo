@@ -66,25 +66,79 @@ export default function MeetingDetail() {
   const [restoringVersion, setRestoringVersion] = useState(false);
   const [showDebugLogs, setShowDebugLogs] = useState(false);
   const [expandedLogIds, setExpandedLogIds] = useState<Set<number>>(new Set());
+  const [pollingIntervalMs, setPollingIntervalMs] = useState(2000);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchMeeting = async () => {
+  const fetchMeeting = async (silent = false) => {
     try {
       const response = await api.get(`/api/meetings/${id}`);
       setMeeting(response.data);
       setFollowUps(response.data.follow_ups || []);
       setMeetingFiles(response.data.attached_files || []);
-      setSelectedVersion(null);
+      if (!silent) {
+        setSelectedVersion(null);
+      }
+      return response.data;
     } catch (error) {
       console.error('Failed to fetch meeting:', error);
-      toast.error('Failed to load meeting');
+      if (!silent) {
+        toast.error('Failed to load meeting');
+      }
+      return null;
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
+    }
+  };
+
+  // Start polling for updates (used during regeneration)
+  const startPolling = () => {
+    if (pollingIntervalRef.current) return;
+    
+    pollingIntervalRef.current = setInterval(async () => {
+      const data = await fetchMeeting(true);
+      if (data && data.status === 'completed') {
+        stopPolling();
+        setRegenerating(false);
+        toast.success(`Meeting regenerated! Now on version ${data.current_version}`);
+      }
+    }, pollingIntervalMs);
+  };
+
+  const stopPolling = () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  };
+
+  // Fetch polling interval from settings (for admins)
+  const fetchSettings = async () => {
+    if (!user?.is_admin) return;
+    
+    try {
+      const response = await api.get('/api/admin/settings');
+      if (response.data.polling_interval) {
+        const interval = parseInt(response.data.polling_interval);
+        if (!isNaN(interval) && interval >= 500) {
+          setPollingIntervalMs(interval);
+        }
+      }
+    } catch (error) {
+      // Silently fail - use default
     }
   };
 
   useEffect(() => {
     fetchMeeting();
+    fetchSettings();
+    
+    // Cleanup polling on unmount
+    return () => {
+      stopPolling();
+    };
   }, [id]);
 
   const handleDelete = async () => {
@@ -104,14 +158,23 @@ export default function MeetingDetail() {
     if (!confirm(`Regenerate this meeting with current agent settings?\n\nThis will:\n• Save current opinions as version ${meeting?.current_version || 1}\n• Generate new opinions from all agents\n• Reprocess all follow-up questions\n\nYou'll have ${historyCount} version(s) in history to choose from.`)) return;
     
     setRegenerating(true);
+    setSelectedVersion(null);
+    
+    // Start polling immediately to show live updates
+    startPolling();
+    
     try {
       const response = await api.post(`/api/meetings/${id}/regenerate`);
+      // Stop polling since we got the final response
+      stopPolling();
       setMeeting(response.data);
       setFollowUps(response.data.follow_ups || []);
-      setSelectedVersion(null);
       toast.success(`Meeting regenerated! Now on version ${response.data.current_version}`);
     } catch (error: any) {
+      stopPolling();
       toast.error(error.response?.data?.detail || 'Failed to regenerate meeting');
+      // Refresh to get current state
+      fetchMeeting(true);
     } finally {
       setRegenerating(false);
     }
@@ -753,7 +816,7 @@ export default function MeetingDetail() {
                 animate={{ opacity: 1, height: 'auto' }}
                 className="mt-4 space-y-2 max-h-[600px] overflow-y-auto"
               >
-                {debugLogs.map((log, index) => (
+                {[...debugLogs].reverse().map((log, index) => (
                   <div
                     key={index}
                     className={`rounded-lg border ${getLogBgColor(log.level)} overflow-hidden`}
