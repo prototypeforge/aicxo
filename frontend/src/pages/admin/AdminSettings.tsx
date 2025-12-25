@@ -64,12 +64,12 @@ export default function AdminSettings() {
     const agentTokens = parseInt(agentMaxTokens);
     const chairTokens = parseInt(chairMaxTokens);
 
-    if (isNaN(agentTokens) || agentTokens < 500 || agentTokens > 16000) {
-      toast.error('Agent max tokens must be between 500 and 16000');
+    if (isNaN(agentTokens) || agentTokens < 100 || agentTokens > 128000) {
+      toast.error('Agent max tokens must be between 100 and 128000');
       return;
     }
-    if (isNaN(chairTokens) || chairTokens < 500 || chairTokens > 16000) {
-      toast.error('Chair max tokens must be between 500 and 16000');
+    if (isNaN(chairTokens) || chairTokens < 100 || chairTokens > 128000) {
+      toast.error('Chair max tokens must be between 100 and 128000');
       return;
     }
 
@@ -206,8 +206,8 @@ export default function AdminSettings() {
               </label>
               <input
                 type="number"
-                min="500"
-                max="16000"
+                min="100"
+                max="128000"
                 step="100"
                 value={agentMaxTokens}
                 onChange={(e) => setAgentMaxTokens(e.target.value)}
@@ -227,8 +227,8 @@ export default function AdminSettings() {
               </label>
               <input
                 type="number"
-                min="500"
-                max="16000"
+                min="100"
+                max="128000"
                 step="100"
                 value={chairMaxTokens}
                 onChange={(e) => setChairMaxTokens(e.target.value)}
