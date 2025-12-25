@@ -51,6 +51,86 @@ def add_debug_log(
         print(f"  Details: {json.dumps(details, default=str, indent=2)}")
 
 
+# Model context window sizes (max total tokens = prompt + completion)
+MODEL_CONTEXT_WINDOWS = {
+    # GPT-4o series
+    "gpt-4o": 128000,
+    "gpt-4o-mini": 128000,
+    "gpt-4o-2024-05-13": 128000,
+    "gpt-4o-2024-08-06": 128000,
+    "gpt-4o-2024-11-20": 128000,
+    "gpt-4o-mini-2024-07-18": 128000,
+    # GPT-4.5 series
+    "gpt-4.5": 128000,
+    "gpt-4.5-preview": 128000,
+    # GPT-4.1 series
+    "gpt-4.1": 128000,
+    "gpt-4.1-mini": 128000,
+    "gpt-4.1-nano": 128000,
+    # GPT-5.x series
+    "gpt-5": 256000,
+    "gpt-5.1": 256000,
+    "gpt-5.2": 256000,
+    # GPT-4 Turbo
+    "gpt-4-turbo": 128000,
+    "gpt-4-turbo-preview": 128000,
+    "gpt-4-turbo-2024-04-09": 128000,
+    "gpt-4-1106-preview": 128000,
+    "gpt-4-0125-preview": 128000,
+    # GPT-4 base
+    "gpt-4": 8192,
+    "gpt-4-0613": 8192,
+    "gpt-4-32k": 32768,
+    # GPT-3.5
+    "gpt-3.5-turbo": 16385,
+    "gpt-3.5-turbo-0125": 16385,
+    "gpt-3.5-turbo-1106": 16385,
+    # o-series reasoning models
+    "o1": 200000,
+    "o1-preview": 128000,
+    "o1-mini": 128000,
+    "o3": 200000,
+    "o3-mini": 128000,
+    "o4-mini": 128000,
+}
+
+
+def get_model_context_window(model: str) -> int:
+    """Get the context window size for a model."""
+    if model in MODEL_CONTEXT_WINDOWS:
+        return MODEL_CONTEXT_WINDOWS[model]
+    # Default estimates based on model name patterns
+    if model.startswith("gpt-5"):
+        return 256000
+    if model.startswith("gpt-4.5") or model.startswith("gpt-4.1"):
+        return 128000
+    if "gpt-4o" in model or "gpt-4-turbo" in model:
+        return 128000
+    if model.startswith("o1") or model.startswith("o3") or model.startswith("o4"):
+        return 128000
+    if "gpt-3.5" in model:
+        return 16385
+    if "gpt-4" in model:
+        return 8192
+    # Conservative default
+    return 8192
+
+
+def calculate_safe_max_tokens(model: str, estimated_prompt_tokens: int, requested_max_tokens: int) -> int:
+    """Calculate a safe max_tokens value that fits within the model's context window."""
+    context_window = get_model_context_window(model)
+    # Leave some buffer for safety (10% or at least 100 tokens)
+    buffer = max(100, int(context_window * 0.05))
+    available_for_completion = context_window - estimated_prompt_tokens - buffer
+    
+    # Ensure at least some tokens for completion
+    if available_for_completion < 500:
+        available_for_completion = 500
+    
+    # Return the minimum of requested and available
+    return min(requested_max_tokens, available_for_completion)
+
+
 # Models that support response_format: json_object
 JSON_MODE_SUPPORTED_MODELS = {
     # GPT-5.x series
@@ -536,21 +616,39 @@ Please provide your professional opinion as the {agent['role']}. Remember to res
             "temperature": 0.7,
         }
         
+        # Estimate prompt tokens (rough: 1 token ≈ 4 chars for English)
+        estimated_prompt_tokens = (len(system_message) + len(user_text)) // 3
+        
+        # Calculate safe max tokens that fits within model's context window
+        safe_max_tokens = calculate_safe_max_tokens(model, estimated_prompt_tokens, agent_max_tokens)
+        model_context = get_model_context_window(model)
+        
+        if safe_max_tokens < agent_max_tokens:
+            add_debug_log(agent_id, agent_name, "warning", f"Reduced max_tokens from {agent_max_tokens} to {safe_max_tokens} to fit model context", {
+                "model_context_window": model_context,
+                "estimated_prompt_tokens": estimated_prompt_tokens,
+                "requested_max_tokens": agent_max_tokens,
+                "safe_max_tokens": safe_max_tokens
+            })
+        
         # Use appropriate token limit parameter based on model
-        # Token limit is configurable via admin settings
+        # Token limit is configurable via admin settings, but capped to fit model
         if uses_max_completion_tokens(model):
-            request_params["max_completion_tokens"] = agent_max_tokens
+            request_params["max_completion_tokens"] = safe_max_tokens
         else:
-            request_params["max_tokens"] = agent_max_tokens
+            request_params["max_tokens"] = safe_max_tokens
         
         if use_json_mode:
             request_params["response_format"] = {"type": "json_object"}
         
         add_debug_log(agent_id, agent_name, "info", "Sending request to OpenAI API", {
             "model": model,
+            "model_context_window": model_context,
             "temperature": 0.7,
             "json_mode": use_json_mode,
-            "max_tokens": agent_max_tokens,
+            "configured_max_tokens": agent_max_tokens,
+            "actual_max_tokens": safe_max_tokens,
+            "estimated_prompt_tokens": estimated_prompt_tokens,
             "system_prompt_length": len(system_message),
             "user_content_type": "multipart" if image_parts else "text",
             "user_text_length": len(user_text)
@@ -800,20 +898,38 @@ Please synthesize these opinions and provide your recommendation as Chair of the
             "temperature": 0.7,
         }
         
+        # Estimate prompt tokens (rough: 1 token ≈ 3-4 chars for English)
+        estimated_prompt_tokens = (len(system_message) + len(user_text)) // 3
+        
+        # Calculate safe max tokens that fits within model's context window
+        safe_max_tokens = calculate_safe_max_tokens(model, estimated_prompt_tokens, chair_max_tokens)
+        model_context = get_model_context_window(model)
+        
+        if safe_max_tokens < chair_max_tokens:
+            add_debug_log("chair", chair_name, "warning", f"Reduced max_tokens from {chair_max_tokens} to {safe_max_tokens} to fit model context", {
+                "model_context_window": model_context,
+                "estimated_prompt_tokens": estimated_prompt_tokens,
+                "requested_max_tokens": chair_max_tokens,
+                "safe_max_tokens": safe_max_tokens
+            })
+        
         # Use appropriate token limit parameter based on model
-        # Token limit is configurable via admin settings
+        # Token limit is configurable via admin settings, but capped to fit model
         if uses_max_completion_tokens(model):
-            request_params["max_completion_tokens"] = chair_max_tokens
+            request_params["max_completion_tokens"] = safe_max_tokens
         else:
-            request_params["max_tokens"] = chair_max_tokens
+            request_params["max_tokens"] = safe_max_tokens
         
         if use_json_mode:
             request_params["response_format"] = {"type": "json_object"}
         
         add_debug_log("chair", chair_name, "info", "Sending chair summary request to OpenAI", {
             "model": model,
+            "model_context_window": model_context,
             "json_mode": use_json_mode,
-            "max_tokens": chair_max_tokens,
+            "configured_max_tokens": chair_max_tokens,
+            "actual_max_tokens": safe_max_tokens,
+            "estimated_prompt_tokens": estimated_prompt_tokens,
             "opinions_text_length": len(opinions_text)
         })
         
