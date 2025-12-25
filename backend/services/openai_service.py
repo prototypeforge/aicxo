@@ -582,9 +582,17 @@ You must provide your expert opinion on questions brought to the board. Be profe
 You MUST respond with ONLY a valid JSON object (no markdown, no explanation before or after) in this exact structure:
 {{
     "opinion": "Your clear, concise opinion on the matter",
-    "reasoning": "Detailed reasoning behind your opinion",
+    "reasoning": "Your detailed reasoning using well-formatted markdown with headers, bullet points, and emphasis where appropriate",
     "confidence": 0.85
 }}
+
+FORMATTING GUIDELINES for reasoning field:
+- Use **bold** for key terms and important concepts
+- Use bullet points (- item) for listing multiple factors
+- Use numbered lists (1. item) for sequential steps or ranked priorities
+- Use > blockquotes for highlighting critical insights
+- Structure complex reasoning with ### sub-headers if needed
+- Keep paragraphs concise and well-separated
 
 The confidence value must be a number between 0.0 and 1.0.
 """
@@ -865,9 +873,30 @@ Confidence: {op['confidence'] * 100:.0f}%
 
 You MUST respond with ONLY a valid JSON object (no markdown, no explanation before or after) in this exact structure:
 {{
-    "summary": "A comprehensive summary of the board's discussion and key points raised",
-    "recommendation": "Your final recommendation based on the collective wisdom of the board"
+    "summary": "A comprehensive summary using well-formatted markdown",
+    "recommendation": "Your final recommendation using well-formatted markdown"
 }}
+
+FORMATTING GUIDELINES for both summary and recommendation fields:
+- Use **bold** for key terms, important decisions, and critical points
+- Use ### headers to organize different sections or topics
+- Use bullet points (- item) for listing key points, concerns, or factors
+- Use numbered lists (1. item) for action items, priorities, or sequential steps
+- Use > blockquotes for highlighting the most critical recommendations or warnings
+- Include clear section breaks between different topics
+- Format financial figures, percentages, and metrics clearly
+
+Structure your summary with sections like:
+### Key Discussion Points
+### Areas of Agreement
+### Areas of Concern
+### Dissenting Views (if any)
+
+Structure your recommendation with:
+### Primary Recommendation
+### Key Action Items
+### Risk Considerations
+### Next Steps
 """
 
     user_text = f"""QUESTION PRESENTED TO THE BOARD:
@@ -1044,7 +1073,15 @@ async def generate_follow_up_response(
     
     system_message = f"""{chair['system_prompt']}
 
-You are responding to a follow-up question from the board meeting. Be specific, actionable, and reference the original discussion when relevant."""
+You are responding to a follow-up question from the board meeting. Be specific, actionable, and reference the original discussion when relevant.
+
+FORMATTING GUIDELINES:
+- Use **bold** for key terms and important points
+- Use bullet points (- item) for listing options or factors
+- Use numbered lists (1. item) for action steps or priorities
+- Use > blockquotes for critical warnings or key recommendations
+- Use ### headers to organize complex responses into sections
+- Keep your response well-structured and easy to follow"""
 
     user_message = f"""ORIGINAL QUESTION:
 {original_question}
@@ -1058,7 +1095,7 @@ BOARD MEMBER OPINIONS SUMMARY:
 FOLLOW-UP QUESTION:
 {follow_up_question}
 
-Please provide a detailed, actionable response to this follow-up question. Reference specific points from the original discussion where relevant. Be practical and specific with recommendations."""
+Please provide a detailed, well-formatted response to this follow-up question. Use markdown formatting with headers, bullet points, and emphasis. Reference specific points from the original discussion where relevant. Be practical and specific with recommendations."""
 
     try:
         response = await client.chat.completions.create(

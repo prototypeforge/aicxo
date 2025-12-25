@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
-from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query
+from fastapi.responses import Response
+from typing import List, Optional, Literal
 from datetime import datetime
 from bson import ObjectId
 import asyncio
@@ -17,6 +18,7 @@ from services.openai_service import (
     get_debug_logs,
     add_debug_log
 )
+from services.report_generator import generate_pdf_report, generate_docx_report
 
 router = APIRouter(prefix="/api/meetings", tags=["Board Meetings"])
 
@@ -630,6 +632,56 @@ async def add_follow_up_question(
     )
     
     return follow_up_doc
+
+
+# Report Export
+
+@router.get("/{meeting_id}/export")
+async def export_meeting_report(
+    meeting_id: str,
+    format: Literal["pdf", "docx"] = Query("pdf", description="Export format"),
+    style: Literal["colorful", "professional"] = Query("colorful", description="Report style"),
+    current_user: User = Depends(get_current_user)
+):
+    """Export meeting report as PDF or DOCX in colorful or professional style."""
+    db = get_database()
+    
+    if not ObjectId.is_valid(meeting_id):
+        raise HTTPException(status_code=400, detail="Invalid meeting ID")
+    
+    meeting = await db.meetings.find_one({
+        "_id": ObjectId(meeting_id),
+        "user_id": current_user.id
+    })
+    
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    
+    if meeting.get('status') != 'completed':
+        raise HTTPException(status_code=400, detail="Can only export completed meetings")
+    
+    # Convert meeting to serializable format
+    meeting_data = serialize_meeting(dict(meeting))
+    
+    try:
+        if format == "pdf":
+            content = await generate_pdf_report(meeting_data, style)
+            media_type = "application/pdf"
+            filename = f"board-meeting-report-{meeting_id}.pdf"
+        else:
+            content = await generate_docx_report(meeting_data, style)
+            media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            filename = f"board-meeting-report-{meeting_id}.docx"
+        
+        return Response(
+            content=content,
+            media_type=media_type,
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate report: {str(e)}")
 
 
 # File Attachments

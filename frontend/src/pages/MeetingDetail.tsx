@@ -23,13 +23,18 @@ import {
   AlertTriangle,
   AlertCircle,
   Info,
-  ChevronRight
+  ChevronRight,
+  Download,
+  FileDown,
+  Palette,
+  Briefcase
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Layout from '../components/Layout';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import OpinionCard from '../components/OpinionCard';
+import MarkdownRenderer from '../components/MarkdownRenderer';
 import api from '../api/axios';
 import { Meeting, OpinionVersion } from '../types';
 import { useAuthStore } from '../store/authStore';
@@ -67,6 +72,8 @@ export default function MeetingDetail() {
   const [showDebugLogs, setShowDebugLogs] = useState(false);
   const [expandedLogIds, setExpandedLogIds] = useState<Set<number>>(new Set());
   const [pollingIntervalMs, setPollingIntervalMs] = useState(2000);
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  const [downloadingReport, setDownloadingReport] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -249,6 +256,35 @@ export default function MeetingDetail() {
       toast.success('File removed');
     } catch (error) {
       toast.error('Failed to remove file');
+    }
+  };
+
+  const handleDownloadReport = async (format: 'pdf' | 'docx', style: 'colorful' | 'professional') => {
+    setDownloadingReport(true);
+    try {
+      const response = await api.get(`/api/meetings/${id}/export`, {
+        params: { format, style },
+        responseType: 'blob'
+      });
+      
+      const blob = new Blob([response.data], { 
+        type: format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `board-meeting-report-${id}.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success(`Report downloaded as ${format.toUpperCase()}`);
+      setShowDownloadMenu(false);
+    } catch (error) {
+      toast.error('Failed to download report');
+    } finally {
+      setDownloadingReport(false);
     }
   };
 
@@ -617,26 +653,101 @@ export default function MeetingDetail() {
                 <Crown className="w-6 h-6 text-gold-400" />
               </div>
               <div className="flex-1">
-                <h2 className="text-xl font-display font-bold text-gold-400 mb-4">
-                  Chair of the Board's Summary
-                </h2>
+                <div className="flex items-start justify-between mb-4">
+                  <h2 className="text-xl font-display font-bold text-gold-400">
+                    Chair of the Board's Summary
+                  </h2>
+                  
+                  {/* Download Report Button */}
+                  <div className="relative">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+                      disabled={downloadingReport}
+                    >
+                      {downloadingReport ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4" />
+                      )}
+                      Export Report
+                      <ChevronDown className={`w-4 h-4 transition-transform ${showDownloadMenu ? 'rotate-180' : ''}`} />
+                    </Button>
+                    
+                    {showDownloadMenu && (
+                      <div className="absolute right-0 top-full mt-2 w-64 bg-obsidian-800 border border-obsidian-700 rounded-xl shadow-xl z-50 overflow-hidden">
+                        <div className="p-3 border-b border-obsidian-700">
+                          <p className="text-sm font-medium text-white flex items-center gap-2">
+                            <FileDown className="w-4 h-4 text-gold-400" />
+                            Download Report
+                          </p>
+                        </div>
+                        
+                        {/* Colorful Style */}
+                        <div className="p-2 border-b border-obsidian-700/50">
+                          <div className="flex items-center gap-2 px-2 py-1 mb-2">
+                            <Palette className="w-4 h-4 text-purple-400" />
+                            <span className="text-xs font-medium text-purple-400 uppercase tracking-wider">Colorful Style</span>
+                          </div>
+                          <button
+                            onClick={() => handleDownloadReport('pdf', 'colorful')}
+                            className="w-full px-3 py-2 text-left text-sm text-white hover:bg-obsidian-700/50 rounded-lg transition-colors flex items-center gap-2"
+                          >
+                            <FileText className="w-4 h-4 text-red-400" />
+                            PDF Document
+                          </button>
+                          <button
+                            onClick={() => handleDownloadReport('docx', 'colorful')}
+                            className="w-full px-3 py-2 text-left text-sm text-white hover:bg-obsidian-700/50 rounded-lg transition-colors flex items-center gap-2"
+                          >
+                            <FileText className="w-4 h-4 text-blue-400" />
+                            Word Document (.docx)
+                          </button>
+                        </div>
+                        
+                        {/* Professional Style */}
+                        <div className="p-2">
+                          <div className="flex items-center gap-2 px-2 py-1 mb-2">
+                            <Briefcase className="w-4 h-4 text-obsidian-400" />
+                            <span className="text-xs font-medium text-obsidian-400 uppercase tracking-wider">Professional Style</span>
+                          </div>
+                          <button
+                            onClick={() => handleDownloadReport('pdf', 'professional')}
+                            className="w-full px-3 py-2 text-left text-sm text-white hover:bg-obsidian-700/50 rounded-lg transition-colors flex items-center gap-2"
+                          >
+                            <FileText className="w-4 h-4 text-red-400" />
+                            PDF Document
+                          </button>
+                          <button
+                            onClick={() => handleDownloadReport('docx', 'professional')}
+                            className="w-full px-3 py-2 text-left text-sm text-white hover:bg-obsidian-700/50 rounded-lg transition-colors flex items-center gap-2"
+                          >
+                            <FileText className="w-4 h-4 text-blue-400" />
+                            Word Document (.docx)
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-sm font-medium text-obsidian-400 uppercase tracking-wider mb-2">
+                    <h3 className="text-sm font-medium text-obsidian-400 uppercase tracking-wider mb-3">
                       Board Discussion Summary
                     </h3>
-                    <div className="text-obsidian-200 leading-relaxed whitespace-pre-wrap">
-                      {displayChairSummary}
+                    <div className="text-obsidian-200 leading-relaxed">
+                      <MarkdownRenderer content={displayChairSummary} />
                     </div>
                   </div>
                   
                   <div className="p-4 rounded-xl bg-gold-500/10 border border-gold-500/20">
-                    <h3 className="text-sm font-medium text-gold-400 uppercase tracking-wider mb-2">
+                    <h3 className="text-sm font-medium text-gold-400 uppercase tracking-wider mb-3">
                       Official Recommendation
                     </h3>
-                    <div className="text-white leading-relaxed font-medium whitespace-pre-wrap">
-                      {displayChairRecommendation}
+                    <div className="text-white leading-relaxed font-medium">
+                      <MarkdownRenderer content={displayChairRecommendation} />
                     </div>
                   </div>
                 </div>
@@ -731,8 +842,10 @@ export default function MeetingDetail() {
                       <Crown className="w-3 h-3 text-gold-400" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm text-gold-400 font-medium mb-1">Chair's Response</p>
-                      <p className="text-obsidian-200 whitespace-pre-wrap">{followUp.chair_response}</p>
+                      <p className="text-sm text-gold-400 font-medium mb-2">Chair's Response</p>
+                      <div className="text-obsidian-200">
+                        <MarkdownRenderer content={followUp.chair_response} />
+                      </div>
                     </div>
                   </div>
                 )}

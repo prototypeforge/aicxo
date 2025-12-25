@@ -35,3 +35,7 @@ pytesseract==0.3.10
 
 # CORS
 starlette==0.35.1
+
+# Report Generation
+markdown2==2.4.12
+reportlab==4.0.9

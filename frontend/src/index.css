@@ -130,3 +130,70 @@ body {
   animation: shimmer 1.5s infinite;
 }
 
+/* Markdown content styling */
+.markdown-content {
+  line-height: 1.7;
+}
+
+.markdown-content > *:first-child {
+  margin-top: 0 !important;
+}
+
+.markdown-content > *:last-child {
+  margin-bottom: 0 !important;
+}
+
+.markdown-content ul ul,
+.markdown-content ol ol,
+.markdown-content ul ol,
+.markdown-content ol ul {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.markdown-content li > p {
+  margin-bottom: 0.25rem;
+}
+
+.markdown-content li > ul,
+.markdown-content li > ol {
+  margin-left: 1rem;
+}
+
+/* Nested list styling */
+.markdown-content ul li::marker {
+  color: rgba(248, 196, 113, 0.6);
+}
+
+.markdown-content ol li::marker {
+  color: rgba(89, 130, 245, 0.8);
+}
+
+/* Code block enhancements */
+.markdown-content pre code {
+  display: block;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+/* Table hover effects */
+.markdown-content tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Blockquote gradient border */
+.markdown-content blockquote {
+  position: relative;
+}
+
+.markdown-content blockquote::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(to bottom, #ffb420, #ffc94a);
+  border-radius: 2px;
+}
+

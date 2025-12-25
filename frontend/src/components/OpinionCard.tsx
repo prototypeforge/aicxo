@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { User, TrendingUp } from 'lucide-react';
 import { AgentOpinion } from '../types';
+import MarkdownRenderer from './MarkdownRenderer';
 
 interface OpinionCardProps {
   opinion: AgentOpinion;
@@ -44,7 +45,9 @@ export default function OpinionCard({ opinion, index }: OpinionCardProps) {
         <h5 className="text-xs font-medium text-obsidian-400 uppercase tracking-wider mb-2">
           Opinion
         </h5>
-        <p className="text-white leading-relaxed">{opinion.opinion}</p>
+        <div className="text-white leading-relaxed">
+          <MarkdownRenderer content={opinion.opinion} />
+        </div>
       </div>
 
       {/* Reasoning */}
@@ -52,7 +55,9 @@ export default function OpinionCard({ opinion, index }: OpinionCardProps) {
         <h5 className="text-xs font-medium text-obsidian-400 uppercase tracking-wider mb-2">
           Reasoning
         </h5>
-        <p className="text-sm text-obsidian-300 leading-relaxed">{opinion.reasoning}</p>
+        <div className="text-sm text-obsidian-300 leading-relaxed">
+          <MarkdownRenderer content={opinion.reasoning} />
+        </div>
       </div>
 
       {/* Expertise Applied */}
