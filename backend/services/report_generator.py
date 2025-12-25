@@ -107,88 +107,146 @@ def get_confidence_color(confidence: float, style: str) -> RGBColor:
     return RGBColor(239, 68, 68)  # Red
 
 
+_fonts_registered = False
+_font_names = ('Helvetica', 'Helvetica-Bold', 'Helvetica-Oblique')
+
+
 def _register_fonts():
     """Register Unicode-compatible fonts for PDF generation."""
-    # Try to register DejaVu fonts which have excellent Unicode support
-    # These are commonly available on most systems
-    font_paths = [
-        # Linux paths
-        '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-        '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
-        '/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf',
-        # Windows paths
-        'C:/Windows/Fonts/DejaVuSans.ttf',
-        'C:/Windows/Fonts/arial.ttf',
-        'C:/Windows/Fonts/arialbd.ttf',
-        'C:/Windows/Fonts/ariali.ttf',
-        # macOS paths
-        '/Library/Fonts/Arial.ttf',
-        '/System/Library/Fonts/Supplemental/Arial.ttf',
+    global _fonts_registered, _font_names
+    
+    # Only register once
+    if _fonts_registered:
+        return _font_names
+    
+    # Try to find and register fonts with Unicode support
+    font_configs = [
+        # DejaVu fonts (best Unicode support, common on Linux)
+        {
+            'regular': [
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+                '/usr/share/fonts/dejavu/DejaVuSans.ttf',
+                'C:/Windows/Fonts/DejaVuSans.ttf',
+            ],
+            'bold': [
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+                '/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf',
+                'C:/Windows/Fonts/DejaVuSans-Bold.ttf',
+            ],
+            'italic': [
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf',
+                '/usr/share/fonts/dejavu/DejaVuSans-Oblique.ttf',
+                'C:/Windows/Fonts/DejaVuSans-Oblique.ttf',
+            ],
+            'names': ('DejaVuSans', 'DejaVuSans-Bold', 'DejaVuSans-Oblique'),
+        },
+        # Liberation Sans (common on Linux, similar to Arial)
+        {
+            'regular': [
+                '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+                '/usr/share/fonts/liberation/LiberationSans-Regular.ttf',
+            ],
+            'bold': [
+                '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+                '/usr/share/fonts/liberation/LiberationSans-Bold.ttf',
+            ],
+            'italic': [
+                '/usr/share/fonts/truetype/liberation/LiberationSans-Italic.ttf',
+                '/usr/share/fonts/liberation/LiberationSans-Italic.ttf',
+            ],
+            'names': ('LiberationSans', 'LiberationSans-Bold', 'LiberationSans-Italic'),
+        },
+        # FreeSans (common fallback on Linux)
+        {
+            'regular': [
+                '/usr/share/fonts/truetype/freefont/FreeSans.ttf',
+                '/usr/share/fonts/freefont/FreeSans.ttf',
+            ],
+            'bold': [
+                '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf',
+                '/usr/share/fonts/freefont/FreeSansBold.ttf',
+            ],
+            'italic': [
+                '/usr/share/fonts/truetype/freefont/FreeSansOblique.ttf',
+                '/usr/share/fonts/freefont/FreeSansOblique.ttf',
+            ],
+            'names': ('FreeSans', 'FreeSans-Bold', 'FreeSans-Italic'),
+        },
+        # Arial (Windows/macOS)
+        {
+            'regular': [
+                'C:/Windows/Fonts/arial.ttf',
+                '/Library/Fonts/Arial.ttf',
+                '/System/Library/Fonts/Supplemental/Arial.ttf',
+            ],
+            'bold': [
+                'C:/Windows/Fonts/arialbd.ttf',
+                '/Library/Fonts/Arial Bold.ttf',
+            ],
+            'italic': [
+                'C:/Windows/Fonts/ariali.ttf',
+                '/Library/Fonts/Arial Italic.ttf',
+            ],
+            'names': ('ArialUnicode', 'ArialUnicode-Bold', 'ArialUnicode-Italic'),
+        },
     ]
     
-    registered = False
-    
-    # Try DejaVu first (best Unicode support)
-    dejavu_paths = {
-        'DejaVuSans': [
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-            'C:/Windows/Fonts/DejaVuSans.ttf',
-        ],
-        'DejaVuSans-Bold': [
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
-            'C:/Windows/Fonts/DejaVuSans-Bold.ttf',
-        ],
-        'DejaVuSans-Oblique': [
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf',
-            'C:/Windows/Fonts/DejaVuSans-Oblique.ttf',
-        ],
-    }
-    
-    for font_name, paths in dejavu_paths.items():
-        for path in paths:
-            if os.path.exists(path):
-                try:
-                    pdfmetrics.registerFont(TTFont(font_name, path))
-                    registered = True
+    for config in font_configs:
+        try:
+            regular_path = None
+            bold_path = None
+            italic_path = None
+            
+            # Find regular font
+            for path in config['regular']:
+                if os.path.exists(path):
+                    regular_path = path
                     break
-                except:
-                    continue
-    
-    if registered:
-        return 'DejaVuSans', 'DejaVuSans-Bold', 'DejaVuSans-Oblique'
-    
-    # Fallback to Arial (good Windows support)
-    arial_paths = {
-        'ArialUnicode': [
-            'C:/Windows/Fonts/arial.ttf',
-            '/Library/Fonts/Arial.ttf',
-            '/System/Library/Fonts/Supplemental/Arial.ttf',
-        ],
-        'ArialUnicode-Bold': [
-            'C:/Windows/Fonts/arialbd.ttf',
-            '/Library/Fonts/Arial Bold.ttf',
-        ],
-        'ArialUnicode-Italic': [
-            'C:/Windows/Fonts/ariali.ttf',
-            '/Library/Fonts/Arial Italic.ttf',
-        ],
-    }
-    
-    for font_name, paths in arial_paths.items():
-        for path in paths:
-            if os.path.exists(path):
-                try:
-                    pdfmetrics.registerFont(TTFont(font_name, path))
-                    registered = True
+            
+            if not regular_path:
+                continue
+            
+            # Find bold font
+            for path in config['bold']:
+                if os.path.exists(path):
+                    bold_path = path
                     break
-                except:
-                    continue
+            
+            # Find italic font
+            for path in config['italic']:
+                if os.path.exists(path):
+                    italic_path = path
+                    break
+            
+            # Register fonts
+            names = config['names']
+            pdfmetrics.registerFont(TTFont(names[0], regular_path))
+            
+            if bold_path:
+                pdfmetrics.registerFont(TTFont(names[1], bold_path))
+            else:
+                # Use regular as fallback for bold
+                pdfmetrics.registerFont(TTFont(names[1], regular_path))
+            
+            if italic_path:
+                pdfmetrics.registerFont(TTFont(names[2], italic_path))
+            else:
+                # Use regular as fallback for italic
+                pdfmetrics.registerFont(TTFont(names[2], regular_path))
+            
+            _fonts_registered = True
+            _font_names = names
+            return names
+            
+        except Exception as e:
+            # Log but continue trying other fonts
+            print(f"Failed to register font {config['names'][0]}: {e}")
+            continue
     
-    if registered:
-        return 'ArialUnicode', 'ArialUnicode-Bold', 'ArialUnicode-Italic'
-    
-    # Return Helvetica as last resort (limited Unicode)
-    return 'Helvetica', 'Helvetica-Bold', 'Helvetica-Oblique'
+    # Return Helvetica as last resort (limited Unicode support)
+    _fonts_registered = True
+    _font_names = ('Helvetica', 'Helvetica-Bold', 'Helvetica-Oblique')
+    return _font_names
 
 
 def _draw_background(canvas, doc, bg_color):

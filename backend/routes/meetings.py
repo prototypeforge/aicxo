@@ -681,6 +681,9 @@ async def export_meeting_report(
             }
         )
     except Exception as e:
+        import traceback
+        error_detail = f"Failed to generate report: {str(e)}\n{traceback.format_exc()}"
+        print(error_detail)  # Log to console for debugging
         raise HTTPException(status_code=500, detail=f"Failed to generate report: {str(e)}")
 
 

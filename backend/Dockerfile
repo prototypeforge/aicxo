@@ -3,12 +3,17 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install system dependencies including Tesseract OCR for image text extraction
+# and fonts for PDF generation with Unicode support (Polish, etc.)
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
     tesseract-ocr \
     tesseract-ocr-eng \
-    && rm -rf /var/lib/apt/lists/*
+    fonts-dejavu-core \
+    fonts-dejavu-extra \
+    fontconfig \
+    && rm -rf /var/lib/apt/lists/* \
+    && fc-cache -f -v
 
 # Install Python dependencies
 COPY requirements.txt .
