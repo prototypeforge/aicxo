@@ -56,6 +56,15 @@ export interface OpinionVersion {
   generated_by?: number;
 }
 
+export interface DebugLogEntry {
+  timestamp: string;
+  agent_id: string;
+  agent_name: string;
+  level: 'info' | 'warning' | 'error';
+  message: string;
+  details?: Record<string, unknown>;
+}
+
 export interface Meeting {
   id: string;
   user_id: number;
@@ -71,6 +80,7 @@ export interface Meeting {
   attached_files?: MeetingFile[];
   current_version?: number;
   opinion_history?: OpinionVersion[];
+  debug_logs?: DebugLogEntry[];
 }
 
 export interface CompanyFile {

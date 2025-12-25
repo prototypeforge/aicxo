@@ -94,6 +94,15 @@ class OpinionVersion(BaseModel):
     generated_by: Optional[int] = None  # Admin user ID who triggered regeneration
 
 
+class DebugLogEntry(BaseModel):
+    timestamp: str
+    agent_id: str
+    agent_name: str
+    level: str  # "info", "warning", "error"
+    message: str
+    details: Optional[dict] = None
+
+
 class MeetingResponse(BaseModel):
     id: str
     user_id: int
@@ -109,6 +118,7 @@ class MeetingResponse(BaseModel):
     attached_files: Optional[List[MeetingFileResponse]] = []
     current_version: Optional[int] = 1
     opinion_history: Optional[List[OpinionVersion]] = []
+    debug_logs: Optional[List[DebugLogEntry]] = []  # Debug logs for admin review
 
     class Config:
         from_attributes = True

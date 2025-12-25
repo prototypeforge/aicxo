@@ -9,7 +9,14 @@ from database.mongodb import get_database
 from models.user import User
 from schemas.agent import MeetingCreate, MeetingResponse, FollowUpCreate, FollowUpResponse, MeetingFileResponse, OpinionVersion
 from auth.security import get_current_user
-from services.openai_service import generate_agent_opinion, generate_chair_summary, generate_follow_up_response
+from services.openai_service import (
+    generate_agent_opinion, 
+    generate_chair_summary, 
+    generate_follow_up_response,
+    clear_debug_logs,
+    get_debug_logs,
+    add_debug_log
+)
 
 router = APIRouter(prefix="/api/meetings", tags=["Board Meetings"])
 
@@ -62,6 +69,13 @@ async def create_meeting(
     """Create a new board meeting - all hired agents will deliberate on the question."""
     db = get_database()
     
+    # Clear debug logs at the start of meeting creation
+    clear_debug_logs()
+    add_debug_log("system", "Meeting System", "info", "Starting meeting creation", {
+        "user_id": current_user.id,
+        "question_length": len(meeting_data.question)
+    })
+    
     # Get user's hired agents
     hired_ids = current_user.hired_agents or []
     if not hired_ids:
@@ -83,10 +97,17 @@ async def create_meeting(
             detail="No active agents found in your board."
         )
     
+    add_debug_log("system", "Meeting System", "info", f"Found {len(agents)} agents for meeting", {
+        "agent_names": [a.get('name') for a in agents],
+        "agent_models": [a.get('model') for a in agents]
+    })
+    
     # Get user's company files for context
     company_files = await db.company_files.find(
         {"user_id": current_user.id}
     ).to_list(20)
+    
+    add_debug_log("system", "Meeting System", "info", f"Loaded {len(company_files)} company files for context")
     
     # Create the meeting record first to get the ID
     meeting = {
@@ -104,11 +125,14 @@ async def create_meeting(
         "current_version": 1,
         "opinion_history": [],
         "follow_ups": [],
-        "attached_files": []
+        "attached_files": [],
+        "debug_logs": []
     }
     
     result = await db.meetings.insert_one(meeting)
     meeting_id = str(result.inserted_id)
+    
+    add_debug_log("system", "Meeting System", "info", f"Created meeting record", {"meeting_id": meeting_id})
     
     # Generate opinions from all agents concurrently
     opinion_tasks = [
@@ -124,6 +148,16 @@ async def create_meeting(
     ]
     
     opinions = await asyncio.gather(*opinion_tasks)
+    
+    # Check for errors in opinions
+    errors_found = sum(1 for op in opinions if op.get('error'))
+    empty_opinions = sum(1 for op in opinions if not op.get('opinion') or op.get('opinion', '').startswith('Error'))
+    
+    add_debug_log("system", "Meeting System", "info", f"All agent opinions generated", {
+        "total_agents": len(opinions),
+        "errors": errors_found,
+        "empty_or_error_opinions": empty_opinions
+    })
     
     # Calculate total tokens for agents
     total_agent_tokens = sum(op.get('tokens_used', 0) for op in opinions)
@@ -154,6 +188,18 @@ async def create_meeting(
     usage_records = await db.token_usage.find({"meeting_id": meeting_id}).to_list(100)
     total_cost = sum(r.get('cost_usd', 0) for r in usage_records)
     
+    # Collect all debug logs
+    debug_logs = get_debug_logs()
+    
+    add_debug_log("system", "Meeting System", "info", "Meeting generation completed", {
+        "total_tokens": total_tokens,
+        "total_cost_usd": round(total_cost, 6),
+        "total_log_entries": len(debug_logs) + 1
+    })
+    
+    # Get final debug logs (including the completion message)
+    final_debug_logs = get_debug_logs()
+    
     # Update meeting with all opinions and chair's summary
     await db.meetings.update_one(
         {"_id": ObjectId(meeting_id)},
@@ -165,7 +211,8 @@ async def create_meeting(
                 "status": "completed",
                 "completed_at": datetime.utcnow(),
                 "total_tokens_used": total_tokens,
-                "total_cost_usd": round(total_cost, 6)
+                "total_cost_usd": round(total_cost, 6),
+                "debug_logs": final_debug_logs
             }
         }
     )
@@ -215,6 +262,13 @@ async def regenerate_meeting(
     
     db = get_database()
     
+    # Clear debug logs at the start
+    clear_debug_logs()
+    add_debug_log("system", "Meeting System", "info", "Starting meeting regeneration", {
+        "meeting_id": meeting_id,
+        "admin_user_id": current_user.id
+    })
+    
     if not ObjectId.is_valid(meeting_id):
         raise HTTPException(status_code=400, detail="Invalid meeting ID")
     
@@ -255,6 +309,11 @@ async def regenerate_meeting(
             detail="No active agents found in the board."
         )
     
+    add_debug_log("system", "Meeting System", "info", f"Found {len(agents)} agents for regeneration", {
+        "agent_names": [a.get('name') for a in agents],
+        "agent_models": [a.get('model') for a in agents]
+    })
+    
     # Get company files for context
     company_files = await db.company_files.find(
         {"user_id": meeting_user_id}
@@ -278,6 +337,11 @@ async def regenerate_meeting(
         opinion_history.append(historical_version)
     
     new_version = current_version + 1
+    
+    add_debug_log("system", "Meeting System", "info", f"Creating version {new_version}", {
+        "previous_version": current_version,
+        "history_count": len(opinion_history)
+    })
     
     # Update meeting status to in_progress
     await db.meetings.update_one(
@@ -304,6 +368,16 @@ async def regenerate_meeting(
     ]
     
     opinions = await asyncio.gather(*opinion_tasks)
+    
+    # Check for errors in opinions
+    errors_found = sum(1 for op in opinions if op.get('error'))
+    empty_opinions = sum(1 for op in opinions if not op.get('opinion') or op.get('opinion', '').startswith('Error'))
+    
+    add_debug_log("system", "Meeting System", "info", f"All agent opinions regenerated", {
+        "total_agents": len(opinions),
+        "errors": errors_found,
+        "empty_or_error_opinions": empty_opinions
+    })
     
     # Calculate total tokens for agents
     total_agent_tokens = sum(op.get('tokens_used', 0) for op in opinions)
@@ -361,6 +435,18 @@ async def regenerate_meeting(
     }).to_list(100)
     total_cost = sum(r.get('cost_usd', 0) for r in usage_records)
     
+    # Collect all debug logs
+    final_debug_logs = get_debug_logs()
+    
+    add_debug_log("system", "Meeting System", "info", "Meeting regeneration completed", {
+        "new_version": new_version,
+        "total_tokens": total_tokens,
+        "total_log_entries": len(final_debug_logs) + 1
+    })
+    
+    # Get final debug logs
+    final_debug_logs = get_debug_logs()
+    
     # Update meeting with new opinions, chair's summary, and reprocessed follow-ups
     await db.meetings.update_one(
         {"_id": ObjectId(meeting_id)},
@@ -375,7 +461,8 @@ async def regenerate_meeting(
                 "total_tokens_used": meeting.get('total_tokens_used', 0) + total_tokens,
                 "total_cost_usd": round(meeting.get('total_cost_usd', 0) + total_cost, 6),
                 "regenerated_at": datetime.utcnow(),
-                "regenerated_by": current_user.id
+                "regenerated_by": current_user.id,
+                "debug_logs": final_debug_logs
             }
         }
     )

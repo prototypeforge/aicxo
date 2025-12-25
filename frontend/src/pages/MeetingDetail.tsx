@@ -18,7 +18,12 @@ import {
   X,
   RefreshCw,
   History,
-  ChevronDown
+  ChevronDown,
+  Terminal,
+  AlertTriangle,
+  AlertCircle,
+  Info,
+  ChevronRight
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Layout from '../components/Layout';
@@ -26,7 +31,7 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import OpinionCard from '../components/OpinionCard';
 import api from '../api/axios';
-import { Meeting, OpinionVersion } from '../types';
+import { Meeting, OpinionVersion, DebugLogEntry } from '../types';
 import { useAuthStore } from '../store/authStore';
 
 interface FollowUpQuestion {
@@ -59,6 +64,8 @@ export default function MeetingDetail() {
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState<OpinionVersion | null>(null);
   const [restoringVersion, setRestoringVersion] = useState(false);
+  const [showDebugLogs, setShowDebugLogs] = useState(false);
+  const [expandedLogIds, setExpandedLogIds] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchMeeting = async () => {
@@ -187,6 +194,45 @@ export default function MeetingDetail() {
   const displayChairSummary = selectedVersion?.chair_summary || meeting?.chair_summary || '';
   const displayChairRecommendation = selectedVersion?.chair_recommendation || meeting?.chair_recommendation || '';
   const displayFollowUps = selectedVersion?.follow_ups || followUps;
+
+  // Debug logs helpers
+  const debugLogs = meeting?.debug_logs || [];
+  const hasErrors = debugLogs.some(log => log.level === 'error');
+  const hasWarnings = debugLogs.some(log => log.level === 'warning');
+  
+  const toggleLogExpanded = (index: number) => {
+    setExpandedLogIds(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
+  const getLogIcon = (level: string) => {
+    switch (level) {
+      case 'error':
+        return <AlertCircle className="w-4 h-4 text-red-400" />;
+      case 'warning':
+        return <AlertTriangle className="w-4 h-4 text-amber-400" />;
+      default:
+        return <Info className="w-4 h-4 text-blue-400" />;
+    }
+  };
+
+  const getLogBgColor = (level: string) => {
+    switch (level) {
+      case 'error':
+        return 'bg-red-500/10 border-red-500/30';
+      case 'warning':
+        return 'bg-amber-500/10 border-amber-500/30';
+      default:
+        return 'bg-obsidian-800/30 border-obsidian-700/50';
+    }
+  };
 
   if (loading) {
     return (
@@ -667,6 +713,103 @@ export default function MeetingDetail() {
           )}
         </p>
       </Card>
+
+      {/* Debug Logs Panel - Admin Only */}
+      {user?.is_admin && debugLogs.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-6"
+        >
+          <Card className={`${hasErrors ? 'border-red-500/30' : hasWarnings ? 'border-amber-500/30' : 'border-obsidian-700'}`}>
+            <button
+              onClick={() => setShowDebugLogs(!showDebugLogs)}
+              className="w-full flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${hasErrors ? 'bg-red-500/20' : hasWarnings ? 'bg-amber-500/20' : 'bg-obsidian-700'}`}>
+                  <Terminal className={`w-5 h-5 ${hasErrors ? 'text-red-400' : hasWarnings ? 'text-amber-400' : 'text-obsidian-400'}`} />
+                </div>
+                <div className="text-left">
+                  <h3 className="font-medium text-white flex items-center gap-2">
+                    Debug Logs
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-obsidian-700 text-obsidian-300">
+                      Admin Only
+                    </span>
+                  </h3>
+                  <p className="text-sm text-obsidian-400">
+                    {debugLogs.length} entries
+                    {hasErrors && <span className="text-red-400 ml-2">• {debugLogs.filter(l => l.level === 'error').length} errors</span>}
+                    {hasWarnings && <span className="text-amber-400 ml-2">• {debugLogs.filter(l => l.level === 'warning').length} warnings</span>}
+                  </p>
+                </div>
+              </div>
+              <ChevronDown className={`w-5 h-5 text-obsidian-400 transition-transform ${showDebugLogs ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showDebugLogs && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="mt-4 space-y-2 max-h-[600px] overflow-y-auto"
+              >
+                {debugLogs.map((log, index) => (
+                  <div
+                    key={index}
+                    className={`rounded-lg border ${getLogBgColor(log.level)} overflow-hidden`}
+                  >
+                    <button
+                      onClick={() => log.details && toggleLogExpanded(index)}
+                      className={`w-full p-3 text-left ${log.details ? 'cursor-pointer hover:bg-white/5' : 'cursor-default'}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5">
+                          {getLogIcon(log.level)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                              log.level === 'error' ? 'bg-red-500/20 text-red-400' :
+                              log.level === 'warning' ? 'bg-amber-500/20 text-amber-400' :
+                              'bg-blue-500/20 text-blue-400'
+                            }`}>
+                              {log.level.toUpperCase()}
+                            </span>
+                            <span className="text-xs text-obsidian-500 font-mono">
+                              {log.agent_name}
+                            </span>
+                            <span className="text-xs text-obsidian-600">
+                              {format(new Date(log.timestamp), 'HH:mm:ss.SSS')}
+                            </span>
+                          </div>
+                          <p className={`text-sm mt-1 ${log.level === 'error' ? 'text-red-200' : 'text-obsidian-200'}`}>
+                            {log.message}
+                          </p>
+                        </div>
+                        {log.details && (
+                          <ChevronRight className={`w-4 h-4 text-obsidian-500 transition-transform flex-shrink-0 ${expandedLogIds.has(index) ? 'rotate-90' : ''}`} />
+                        )}
+                      </div>
+                    </button>
+                    
+                    {log.details && expandedLogIds.has(index) && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="px-3 pb-3"
+                      >
+                        <pre className="text-xs bg-obsidian-900/50 rounded-lg p-3 overflow-x-auto text-obsidian-300 font-mono whitespace-pre-wrap break-all">
+                          {JSON.stringify(log.details, null, 2)}
+                        </pre>
+                      </motion.div>
+                    )}
+                  </div>
+                ))}
+              </motion.div>
+            )}
+          </Card>
+        </motion.div>
+      )}
     </Layout>
   );
 }

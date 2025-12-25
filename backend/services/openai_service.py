@@ -4,9 +4,51 @@ from datetime import datetime
 import json
 import re
 import base64
+import traceback
 
 from database.mongodb import get_database
 from schemas.billing import calculate_cost
+
+
+# Global list to collect debug logs during a meeting generation
+_debug_logs: List[Dict[str, Any]] = []
+
+
+def clear_debug_logs():
+    """Clear the debug logs list."""
+    global _debug_logs
+    _debug_logs = []
+
+
+def get_debug_logs() -> List[Dict[str, Any]]:
+    """Get the collected debug logs."""
+    global _debug_logs
+    return _debug_logs.copy()
+
+
+def add_debug_log(
+    agent_id: str,
+    agent_name: str,
+    level: str,
+    message: str,
+    details: Optional[Dict[str, Any]] = None
+):
+    """Add a debug log entry."""
+    global _debug_logs
+    log_entry = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "agent_id": agent_id,
+        "agent_name": agent_name,
+        "level": level,
+        "message": message,
+        "details": details
+    }
+    _debug_logs.append(log_entry)
+    
+    # Also print to console for server-side logging
+    print(f"[{level.upper()}] [{agent_name}] {message}")
+    if details:
+        print(f"  Details: {json.dumps(details, default=str, indent=2)}")
 
 
 # Models that support response_format: json_object
@@ -376,16 +418,37 @@ async def generate_agent_opinion(
     meeting_id: str
 ) -> Dict[str, Any]:
     """Generate an opinion from a single agent."""
-    client = await get_openai_client()
-    if not client:
-        raise ValueError("OpenAI API key not configured. Please set it in admin settings.")
-    
     model = agent.get('model', 'gpt-4o-mini')
     agent_id = str(agent.get('_id', 'unknown'))
+    agent_name = agent.get('name', 'Unknown Agent')
+    
+    add_debug_log(agent_id, agent_name, "info", f"Starting opinion generation", {
+        "model": model,
+        "question_length": len(question),
+        "context_length": len(context) if context else 0,
+        "num_files": len(company_files)
+    })
+    
+    client = await get_openai_client()
+    if not client:
+        error_msg = "OpenAI API key not configured. Please set it in admin settings."
+        add_debug_log(agent_id, agent_name, "error", error_msg)
+        raise ValueError(error_msg)
+    
     use_json_mode = supports_json_mode(model)
+    
+    add_debug_log(agent_id, agent_name, "info", f"Model configuration", {
+        "model": model,
+        "json_mode_supported": use_json_mode,
+        "vision_supported": supports_vision(model),
+        "file_input_supported": supports_file_input(model)
+    })
     
     # Build file context - for vision models, images are passed directly
     file_context, image_parts = build_file_content_for_model(company_files, model)
+    
+    if image_parts:
+        add_debug_log(agent_id, agent_name, "info", f"Including {len(image_parts)} image/file parts in request")
     
     weights = agent.get('weights', {})
     weights_context = f"""
@@ -453,7 +516,29 @@ Please provide your professional opinion as the {agent['role']}. Remember to res
         if use_json_mode:
             request_params["response_format"] = {"type": "json_object"}
         
+        add_debug_log(agent_id, agent_name, "info", "Sending request to OpenAI API", {
+            "model": model,
+            "temperature": 0.7,
+            "json_mode": use_json_mode,
+            "system_prompt_length": len(system_message),
+            "user_content_type": "multipart" if image_parts else "text",
+            "user_text_length": len(user_text)
+        })
+        
         response = await client.chat.completions.create(**request_params)
+        
+        # Log raw response details
+        choice = response.choices[0] if response.choices else None
+        finish_reason = choice.finish_reason if choice else "no_choice"
+        
+        add_debug_log(agent_id, agent_name, "info", "Received response from OpenAI API", {
+            "finish_reason": finish_reason,
+            "has_content": bool(choice and choice.message.content),
+            "content_length": len(choice.message.content) if choice and choice.message.content else 0,
+            "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
+            "completion_tokens": response.usage.completion_tokens if response.usage else 0,
+            "total_tokens": response.usage.total_tokens if response.usage else 0
+        })
         
         usage = response.usage
         if usage:
@@ -468,34 +553,77 @@ Please provide your professional opinion as the {agent['role']}. Remember to res
                 completion_tokens=usage.completion_tokens
             )
         
-        response_text = response.choices[0].message.content
+        response_text = response.choices[0].message.content if response.choices else None
         
         # Check for empty or None response
         if not response_text or not response_text.strip():
             # Check if there's a refusal
-            refusal = getattr(response.choices[0].message, 'refusal', None)
+            refusal = getattr(response.choices[0].message, 'refusal', None) if response.choices else None
+            
+            add_debug_log(agent_id, agent_name, "error", "Empty response from model", {
+                "finish_reason": finish_reason,
+                "refusal": refusal,
+                "raw_content": repr(response_text),
+                "choices_count": len(response.choices) if response.choices else 0,
+                "full_response_id": response.id if hasattr(response, 'id') else None
+            })
+            
             if refusal:
                 raise ValueError(f"Model refused to respond: {refusal}")
-            raise ValueError("Model returned an empty response")
+            raise ValueError(f"Model returned an empty response. Finish reason: {finish_reason}")
+        
+        add_debug_log(agent_id, agent_name, "info", "Parsing response", {
+            "response_preview": response_text[:200] if len(response_text) > 200 else response_text
+        })
         
         if use_json_mode:
-            result = json.loads(response_text)
+            try:
+                result = json.loads(response_text)
+            except json.JSONDecodeError as json_err:
+                add_debug_log(agent_id, agent_name, "error", "JSON parsing failed in JSON mode", {
+                    "error": str(json_err),
+                    "raw_response": response_text[:500]
+                })
+                raise
         else:
             result = extract_json_from_text(response_text)
+        
+        # Validate we got the expected fields
+        opinion = result.get('opinion', '')
+        reasoning = result.get('reasoning', '')
+        confidence = float(result.get('confidence', 0.5))
+        
+        if not opinion:
+            add_debug_log(agent_id, agent_name, "warning", "Empty opinion field in parsed response", {
+                "parsed_result": result
+            })
+        
+        add_debug_log(agent_id, agent_name, "info", "Successfully generated opinion", {
+            "opinion_length": len(opinion),
+            "reasoning_length": len(reasoning),
+            "confidence": confidence
+        })
         
         return {
             "agent_id": agent_id,
             "agent_name": agent['name'],
             "agent_role": agent['role'],
-            "opinion": result.get('opinion', ''),
-            "reasoning": result.get('reasoning', ''),
-            "confidence": float(result.get('confidence', 0.5)),
+            "opinion": opinion,
+            "reasoning": reasoning,
+            "confidence": confidence,
             "weights_applied": weights,
             "model_used": model,
             "tokens_used": usage.total_tokens if usage else 0,
             "timestamp": datetime.utcnow()
         }
     except Exception as e:
+        error_details = {
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "traceback": traceback.format_exc()
+        }
+        add_debug_log(agent_id, agent_name, "error", f"Exception during opinion generation: {str(e)}", error_details)
+        
         return {
             "agent_id": agent_id,
             "agent_name": agent['name'],
@@ -506,7 +634,9 @@ Please provide your professional opinion as the {agent['role']}. Remember to res
             "weights_applied": weights,
             "model_used": model,
             "tokens_used": 0,
-            "timestamp": datetime.utcnow()
+            "timestamp": datetime.utcnow(),
+            "error": True,
+            "error_details": error_details
         }
 
 
@@ -519,13 +649,28 @@ async def generate_chair_summary(
     company_files: Optional[List[Dict[str, Any]]] = None
 ) -> Dict[str, str]:
     """Generate the Chair of the Board's summary and recommendation."""
+    chair = await get_chair_agent()
+    chair_name = chair.get('name', 'Board Chair')
+    
+    add_debug_log("chair", chair_name, "info", "Starting chair summary generation", {
+        "num_opinions": len(opinions),
+        "question_length": len(question),
+        "has_context": bool(context),
+        "num_files": len(company_files) if company_files else 0
+    })
+    
     client = await get_openai_client()
     if not client:
+        add_debug_log("chair", chair_name, "error", "OpenAI API key not configured")
         raise ValueError("OpenAI API key not configured.")
     
-    chair = await get_chair_agent()
     model = chair.get('model', 'gpt-4o-mini')
     use_json_mode = supports_json_mode(model)
+    
+    add_debug_log("chair", chair_name, "info", "Chair model configuration", {
+        "model": model,
+        "json_mode_supported": use_json_mode
+    })
     
     # Build file context for chair too
     file_context = ""
@@ -589,14 +734,31 @@ Please synthesize these opinions and provide your recommendation as Chair of the
         if use_json_mode:
             request_params["response_format"] = {"type": "json_object"}
         
+        add_debug_log("chair", chair_name, "info", "Sending chair summary request to OpenAI", {
+            "model": model,
+            "json_mode": use_json_mode,
+            "opinions_text_length": len(opinions_text)
+        })
+        
         response = await client.chat.completions.create(**request_params)
+        
+        choice = response.choices[0] if response.choices else None
+        finish_reason = choice.finish_reason if choice else "no_choice"
+        
+        add_debug_log("chair", chair_name, "info", "Received chair summary response", {
+            "finish_reason": finish_reason,
+            "has_content": bool(choice and choice.message.content),
+            "content_length": len(choice.message.content) if choice and choice.message.content else 0,
+            "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
+            "completion_tokens": response.usage.completion_tokens if response.usage else 0
+        })
         
         usage = response.usage
         if usage:
             await record_token_usage(
                 user_id=user_id,
                 agent_id="chair",
-                agent_name=chair.get('name', 'Board Chair'),
+                agent_name=chair_name,
                 agent_role="Chair of the Board",
                 model=model,
                 meeting_id=meeting_id,
@@ -604,17 +766,31 @@ Please synthesize these opinions and provide your recommendation as Chair of the
                 completion_tokens=usage.completion_tokens
             )
         
-        response_text = response.choices[0].message.content
+        response_text = response.choices[0].message.content if response.choices else None
         
         # Check for empty or None response
         if not response_text or not response_text.strip():
-            refusal = getattr(response.choices[0].message, 'refusal', None)
+            refusal = getattr(response.choices[0].message, 'refusal', None) if response.choices else None
+            
+            add_debug_log("chair", chair_name, "error", "Empty response from chair model", {
+                "finish_reason": finish_reason,
+                "refusal": refusal,
+                "raw_content": repr(response_text)
+            })
+            
             if refusal:
                 raise ValueError(f"Model refused to respond: {refusal}")
-            raise ValueError("Model returned an empty response")
+            raise ValueError(f"Model returned an empty response. Finish reason: {finish_reason}")
         
         if use_json_mode:
-            result = json.loads(response_text)
+            try:
+                result = json.loads(response_text)
+            except json.JSONDecodeError as json_err:
+                add_debug_log("chair", chair_name, "error", "JSON parsing failed for chair response", {
+                    "error": str(json_err),
+                    "raw_response": response_text[:500]
+                })
+                raise
         else:
             result = extract_json_from_text(response_text)
             if 'summary' not in result:
@@ -623,6 +799,11 @@ Please synthesize these opinions and provide your recommendation as Chair of the
                     "recommendation": "See summary above for details."
                 }
         
+        add_debug_log("chair", chair_name, "info", "Successfully generated chair summary", {
+            "summary_length": len(result.get('summary', '')),
+            "recommendation_length": len(result.get('recommendation', ''))
+        })
+        
         return {
             "summary": result.get('summary', ''),
             "recommendation": result.get('recommendation', ''),
@@ -630,11 +811,20 @@ Please synthesize these opinions and provide your recommendation as Chair of the
             "tokens_used": usage.total_tokens if usage else 0
         }
     except Exception as e:
+        error_details = {
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "traceback": traceback.format_exc()
+        }
+        add_debug_log("chair", chair_name, "error", f"Exception during chair summary: {str(e)}", error_details)
+        
         return {
             "summary": f"Error generating summary: {str(e)}",
             "recommendation": "Unable to generate recommendation due to an error.",
             "model_used": model,
-            "tokens_used": 0
+            "tokens_used": 0,
+            "error": True,
+            "error_details": error_details
         }
 
 
