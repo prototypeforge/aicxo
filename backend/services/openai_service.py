@@ -281,6 +281,30 @@ async def get_openai_api_key() -> Optional[str]:
     return None
 
 
+async def get_token_limits() -> Dict[str, int]:
+    """Get configurable token limits from database settings."""
+    db = get_database()
+    
+    # Default values
+    defaults = {
+        "agent_max_tokens": 2000,
+        "chair_max_tokens": 3000
+    }
+    
+    result = {}
+    for key, default_value in defaults.items():
+        setting = await db.settings.find_one({"key": key})
+        if setting and setting.get("value"):
+            try:
+                result[key] = int(setting.get("value"))
+            except (ValueError, TypeError):
+                result[key] = default_value
+        else:
+            result[key] = default_value
+    
+    return result
+
+
 async def get_openai_client() -> Optional[AsyncOpenAI]:
     """Create OpenAI client with API key from settings."""
     api_key = await get_openai_api_key()
@@ -422,11 +446,16 @@ async def generate_agent_opinion(
     agent_id = str(agent.get('_id', 'unknown'))
     agent_name = agent.get('name', 'Unknown Agent')
     
+    # Get configurable token limits
+    token_limits = await get_token_limits()
+    agent_max_tokens = token_limits.get('agent_max_tokens', 2000)
+    
     add_debug_log(agent_id, agent_name, "info", f"Starting opinion generation", {
         "model": model,
         "question_length": len(question),
         "context_length": len(context) if context else 0,
-        "num_files": len(company_files)
+        "num_files": len(company_files),
+        "max_tokens_configured": agent_max_tokens
     })
     
     client = await get_openai_client()
@@ -508,11 +537,11 @@ Please provide your professional opinion as the {agent['role']}. Remember to res
         }
         
         # Use appropriate token limit parameter based on model
-        # Increased to 4000 to prevent truncation on complex responses
+        # Token limit is configurable via admin settings
         if uses_max_completion_tokens(model):
-            request_params["max_completion_tokens"] = 4000
+            request_params["max_completion_tokens"] = agent_max_tokens
         else:
-            request_params["max_tokens"] = 4000
+            request_params["max_tokens"] = agent_max_tokens
         
         if use_json_mode:
             request_params["response_format"] = {"type": "json_object"}
@@ -521,7 +550,7 @@ Please provide your professional opinion as the {agent['role']}. Remember to res
             "model": model,
             "temperature": 0.7,
             "json_mode": use_json_mode,
-            "max_tokens": 4000,
+            "max_tokens": agent_max_tokens,
             "system_prompt_length": len(system_message),
             "user_content_type": "multipart" if image_parts else "text",
             "user_text_length": len(user_text)
@@ -693,11 +722,16 @@ async def generate_chair_summary(
     chair = await get_chair_agent()
     chair_name = chair.get('name', 'Board Chair')
     
+    # Get configurable token limits
+    token_limits = await get_token_limits()
+    chair_max_tokens = token_limits.get('chair_max_tokens', 3000)
+    
     add_debug_log("chair", chair_name, "info", "Starting chair summary generation", {
         "num_opinions": len(opinions),
         "question_length": len(question),
         "has_context": bool(context),
-        "num_files": len(company_files) if company_files else 0
+        "num_files": len(company_files) if company_files else 0,
+        "max_tokens_configured": chair_max_tokens
     })
     
     client = await get_openai_client()
@@ -767,11 +801,11 @@ Please synthesize these opinions and provide your recommendation as Chair of the
         }
         
         # Use appropriate token limit parameter based on model
-        # Increased to 6000 for chair summary as it synthesizes all opinions
+        # Token limit is configurable via admin settings
         if uses_max_completion_tokens(model):
-            request_params["max_completion_tokens"] = 6000
+            request_params["max_completion_tokens"] = chair_max_tokens
         else:
-            request_params["max_tokens"] = 6000
+            request_params["max_tokens"] = chair_max_tokens
         
         if use_json_mode:
             request_params["response_format"] = {"type": "json_object"}
@@ -779,7 +813,7 @@ Please synthesize these opinions and provide your recommendation as Chair of the
         add_debug_log("chair", chair_name, "info", "Sending chair summary request to OpenAI", {
             "model": model,
             "json_mode": use_json_mode,
-            "max_tokens": 6000,
+            "max_tokens": chair_max_tokens,
             "opinions_text_length": len(opinions_text)
         })
         

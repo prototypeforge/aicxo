@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Key, Save, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { Settings, Key, Save, Eye, EyeOff, RefreshCw, Sliders, Cpu } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Layout from '../../components/Layout';
 import Card from '../../components/Card';
@@ -12,8 +12,11 @@ export default function AdminSettings() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingTokenLimits, setSavingTokenLimits] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [apiKey, setApiKey] = useState('');
+  const [agentMaxTokens, setAgentMaxTokens] = useState('2000');
+  const [chairMaxTokens, setChairMaxTokens] = useState('3000');
 
   useEffect(() => {
     fetchSettings();
@@ -23,6 +26,13 @@ export default function AdminSettings() {
     try {
       const response = await api.get('/api/admin/settings');
       setSettings(response.data);
+      // Set token limits from settings
+      if (response.data.agent_max_tokens) {
+        setAgentMaxTokens(response.data.agent_max_tokens);
+      }
+      if (response.data.chair_max_tokens) {
+        setChairMaxTokens(response.data.chair_max_tokens);
+      }
     } catch (error) {
       console.error('Failed to fetch settings:', error);
       toast.error('Failed to load settings');
@@ -47,6 +57,34 @@ export default function AdminSettings() {
       toast.error(error.response?.data?.detail || 'Failed to save API key');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveTokenLimits = async () => {
+    const agentTokens = parseInt(agentMaxTokens);
+    const chairTokens = parseInt(chairMaxTokens);
+
+    if (isNaN(agentTokens) || agentTokens < 500 || agentTokens > 16000) {
+      toast.error('Agent max tokens must be between 500 and 16000');
+      return;
+    }
+    if (isNaN(chairTokens) || chairTokens < 500 || chairTokens > 16000) {
+      toast.error('Chair max tokens must be between 500 and 16000');
+      return;
+    }
+
+    setSavingTokenLimits(true);
+    try {
+      await api.put('/api/admin/settings', {
+        agent_max_tokens: agentTokens.toString(),
+        chair_max_tokens: chairTokens.toString()
+      });
+      toast.success('Token limits saved successfully');
+      fetchSettings();
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Failed to save token limits');
+    } finally {
+      setSavingTokenLimits(false);
     }
   };
 
@@ -140,6 +178,79 @@ export default function AdminSettings() {
               >
                 platform.openai.com
               </a>
+            </p>
+          </div>
+        </Card>
+
+        {/* Token Limits */}
+        <Card>
+          <div className="flex items-center gap-4 mb-6">
+            <div className="p-3 rounded-xl bg-amber-500/20">
+              <Sliders className="w-6 h-6 text-amber-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-white">Token Limits</h2>
+              <p className="text-sm text-obsidian-400">
+                Configure max completion tokens for AI responses
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-obsidian-300 mb-2">
+                <div className="flex items-center gap-2">
+                  <Cpu className="w-4 h-4" />
+                  Agent Max Tokens
+                </div>
+              </label>
+              <input
+                type="number"
+                min="500"
+                max="16000"
+                step="100"
+                value={agentMaxTokens}
+                onChange={(e) => setAgentMaxTokens(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-obsidian-800/50 border border-obsidian-700 text-white placeholder-obsidian-500 focus:outline-none focus:ring-2 focus:ring-sapphire-400/50 focus:border-sapphire-400/50"
+              />
+              <p className="mt-1 text-xs text-obsidian-500">
+                Max tokens for individual board member opinions (default: 2000)
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-obsidian-300 mb-2">
+                <div className="flex items-center gap-2">
+                  <Cpu className="w-4 h-4" />
+                  Chair Max Tokens
+                </div>
+              </label>
+              <input
+                type="number"
+                min="500"
+                max="16000"
+                step="100"
+                value={chairMaxTokens}
+                onChange={(e) => setChairMaxTokens(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-obsidian-800/50 border border-obsidian-700 text-white placeholder-obsidian-500 focus:outline-none focus:ring-2 focus:ring-sapphire-400/50 focus:border-sapphire-400/50"
+              />
+              <p className="mt-1 text-xs text-obsidian-500">
+                Max tokens for Chair's summary and recommendation (default: 3000)
+              </p>
+            </div>
+
+            <Button onClick={handleSaveTokenLimits} loading={savingTokenLimits}>
+              <Save className="w-4 h-4" />
+              Save Token Limits
+            </Button>
+          </div>
+
+          <div className="mt-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <p className="text-sm text-amber-300">
+              <strong>Important:</strong> Higher token limits allow for more detailed responses but cost more.
+              If you see "context_length_exceeded" errors, reduce these limits or use a model with a larger context window.
+              The total context = prompt tokens + completion tokens must fit within the model's limit
+              (e.g., GPT-4o-mini has 8,192 tokens, GPT-4o has 128,000 tokens).
             </p>
           </div>
         </Card>
