@@ -68,7 +68,7 @@ export default function MeetingDetail() {
   const [expandedLogIds, setExpandedLogIds] = useState<Set<number>>(new Set());
   const [pollingIntervalMs, setPollingIntervalMs] = useState(2000);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchMeeting = async (silent = false) => {
     try {
