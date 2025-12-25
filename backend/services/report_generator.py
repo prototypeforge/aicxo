@@ -18,6 +18,9 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, BaseDocTemplate, PageTemplate, Frame
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+import os
 
 
 # Color schemes for DOCX
@@ -104,6 +107,90 @@ def get_confidence_color(confidence: float, style: str) -> RGBColor:
     return RGBColor(239, 68, 68)  # Red
 
 
+def _register_fonts():
+    """Register Unicode-compatible fonts for PDF generation."""
+    # Try to register DejaVu fonts which have excellent Unicode support
+    # These are commonly available on most systems
+    font_paths = [
+        # Linux paths
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf',
+        # Windows paths
+        'C:/Windows/Fonts/DejaVuSans.ttf',
+        'C:/Windows/Fonts/arial.ttf',
+        'C:/Windows/Fonts/arialbd.ttf',
+        'C:/Windows/Fonts/ariali.ttf',
+        # macOS paths
+        '/Library/Fonts/Arial.ttf',
+        '/System/Library/Fonts/Supplemental/Arial.ttf',
+    ]
+    
+    registered = False
+    
+    # Try DejaVu first (best Unicode support)
+    dejavu_paths = {
+        'DejaVuSans': [
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+            'C:/Windows/Fonts/DejaVuSans.ttf',
+        ],
+        'DejaVuSans-Bold': [
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+            'C:/Windows/Fonts/DejaVuSans-Bold.ttf',
+        ],
+        'DejaVuSans-Oblique': [
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf',
+            'C:/Windows/Fonts/DejaVuSans-Oblique.ttf',
+        ],
+    }
+    
+    for font_name, paths in dejavu_paths.items():
+        for path in paths:
+            if os.path.exists(path):
+                try:
+                    pdfmetrics.registerFont(TTFont(font_name, path))
+                    registered = True
+                    break
+                except:
+                    continue
+    
+    if registered:
+        return 'DejaVuSans', 'DejaVuSans-Bold', 'DejaVuSans-Oblique'
+    
+    # Fallback to Arial (good Windows support)
+    arial_paths = {
+        'ArialUnicode': [
+            'C:/Windows/Fonts/arial.ttf',
+            '/Library/Fonts/Arial.ttf',
+            '/System/Library/Fonts/Supplemental/Arial.ttf',
+        ],
+        'ArialUnicode-Bold': [
+            'C:/Windows/Fonts/arialbd.ttf',
+            '/Library/Fonts/Arial Bold.ttf',
+        ],
+        'ArialUnicode-Italic': [
+            'C:/Windows/Fonts/ariali.ttf',
+            '/Library/Fonts/Arial Italic.ttf',
+        ],
+    }
+    
+    for font_name, paths in arial_paths.items():
+        for path in paths:
+            if os.path.exists(path):
+                try:
+                    pdfmetrics.registerFont(TTFont(font_name, path))
+                    registered = True
+                    break
+                except:
+                    continue
+    
+    if registered:
+        return 'ArialUnicode', 'ArialUnicode-Bold', 'ArialUnicode-Italic'
+    
+    # Return Helvetica as last resort (limited Unicode)
+    return 'Helvetica', 'Helvetica-Bold', 'Helvetica-Oblique'
+
+
 def _draw_background(canvas, doc, bg_color):
     """Draw background color on the page."""
     canvas.saveState()
@@ -121,6 +208,9 @@ async def generate_pdf_report(
     
     colors_scheme = COLORFUL_PDF if style == "colorful" else PROFESSIONAL_PDF
     is_colorful = style == "colorful"
+    
+    # Register Unicode-compatible fonts
+    font_regular, font_bold, font_italic = _register_fonts()
     
     # Create PDF document with custom page template for background
     doc = BaseDocTemplate(
@@ -149,7 +239,7 @@ async def generate_pdf_report(
     template = PageTemplate(id='main', frames=frame, onPage=on_page)
     doc.addPageTemplates([template])
     
-    # Define styles
+    # Define styles with Unicode-compatible fonts
     styles = getSampleStyleSheet()
     
     # Title style
@@ -160,7 +250,7 @@ async def generate_pdf_report(
         spaceAfter=20,
         alignment=TA_CENTER,
         textColor=colors_scheme["primary"],
-        fontName='Helvetica-Bold'
+        fontName=font_bold
     )
     
     # Heading styles
@@ -171,7 +261,7 @@ async def generate_pdf_report(
         spaceAfter=12,
         spaceBefore=20,
         textColor=colors_scheme["primary"],
-        fontName='Helvetica-Bold'
+        fontName=font_bold
     )
     
     h2_style = ParagraphStyle(
@@ -181,7 +271,7 @@ async def generate_pdf_report(
         spaceAfter=8,
         spaceBefore=15,
         textColor=colors_scheme["secondary"],
-        fontName='Helvetica-Bold'
+        fontName=font_bold
     )
     
     h3_style = ParagraphStyle(
@@ -191,7 +281,7 @@ async def generate_pdf_report(
         spaceAfter=6,
         spaceBefore=12,
         textColor=colors_scheme["accent"],
-        fontName='Helvetica-Bold'
+        fontName=font_bold
     )
     
     # Body text - use light text for colorful, dark for professional
@@ -202,6 +292,7 @@ async def generate_pdf_report(
         spaceAfter=8,
         alignment=TA_JUSTIFY,
         textColor=colors_scheme["text"],
+        fontName=font_regular,
         leading=16
     )
     
@@ -211,6 +302,7 @@ async def generate_pdf_report(
         parent=styles['Normal'],
         fontSize=10,
         textColor=colors_scheme["muted"],
+        fontName=font_regular,
         spaceAfter=6
     )
     
@@ -222,7 +314,7 @@ async def generate_pdf_report(
         leftIndent=20,
         borderPadding=10,
         textColor=colors_scheme["primary"] if is_colorful else colors_scheme["text"],
-        fontName='Helvetica-Oblique',
+        fontName=font_italic,
         spaceAfter=12,
         spaceBefore=8
     )
@@ -235,6 +327,7 @@ async def generate_pdf_report(
         spaceAfter=8,
         alignment=TA_JUSTIFY,
         textColor=colors_scheme["text_bright"],
+        fontName=font_regular,
         leading=16
     )
     

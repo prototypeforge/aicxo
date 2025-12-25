@@ -579,10 +579,12 @@ Focus more on areas where your expertise weight is higher.
 
 You must provide your expert opinion on questions brought to the board. Be professional, insightful, and consider the perspective of your role.
 
+CRITICAL LANGUAGE RULE: You MUST respond in the SAME LANGUAGE as the question. If the question is in Polish, respond in Polish. If in English, respond in English. If in German, respond in German. Always match the language of the question exactly. Do NOT mix languages - the entire response must be in one language matching the question.
+
 You MUST respond with ONLY a valid JSON object (no markdown, no explanation before or after) in this exact structure:
 {{
-    "opinion": "Your clear, concise opinion on the matter",
-    "reasoning": "Your detailed reasoning using well-formatted markdown with headers, bullet points, and emphasis where appropriate",
+    "opinion": "Your clear, concise opinion on the matter (in the same language as the question)",
+    "reasoning": "Your detailed reasoning using well-formatted markdown (in the same language as the question)",
     "confidence": 0.85
 }}
 
@@ -871,10 +873,12 @@ Confidence: {op['confidence'] * 100:.0f}%
     
     system_message = f"""{chair['system_prompt']}
 
+CRITICAL LANGUAGE RULE: You MUST respond in the SAME LANGUAGE as the original question presented to the board. If the question is in Polish, respond entirely in Polish. If in English, respond in English. If in German, respond in German. Always match the language of the question exactly. Do NOT mix languages - your entire summary and recommendation must be in one language matching the question.
+
 You MUST respond with ONLY a valid JSON object (no markdown, no explanation before or after) in this exact structure:
 {{
-    "summary": "A comprehensive summary using well-formatted markdown",
-    "recommendation": "Your final recommendation using well-formatted markdown"
+    "summary": "A comprehensive summary using well-formatted markdown (in the same language as the question)",
+    "recommendation": "Your final recommendation using well-formatted markdown (in the same language as the question)"
 }}
 
 FORMATTING GUIDELINES for both summary and recommendation fields:
@@ -886,13 +890,13 @@ FORMATTING GUIDELINES for both summary and recommendation fields:
 - Include clear section breaks between different topics
 - Format financial figures, percentages, and metrics clearly
 
-Structure your summary with sections like:
+Structure your summary with sections like (use appropriate language):
 ### Key Discussion Points
 ### Areas of Agreement
 ### Areas of Concern
 ### Dissenting Views (if any)
 
-Structure your recommendation with:
+Structure your recommendation with (use appropriate language):
 ### Primary Recommendation
 ### Key Action Items
 ### Risk Considerations
@@ -1075,6 +1079,8 @@ async def generate_follow_up_response(
 
 You are responding to a follow-up question from the board meeting. Be specific, actionable, and reference the original discussion when relevant.
 
+CRITICAL LANGUAGE RULE: You MUST respond in the SAME LANGUAGE as the original question and follow-up question. If the questions are in Polish, respond entirely in Polish. If in English, respond in English. Always match the language of the questions exactly. Do NOT mix languages.
+
 FORMATTING GUIDELINES:
 - Use **bold** for key terms and important points
 - Use bullet points (- item) for listing options or factors
@@ -1095,7 +1101,7 @@ BOARD MEMBER OPINIONS SUMMARY:
 FOLLOW-UP QUESTION:
 {follow_up_question}
 
-Please provide a detailed, well-formatted response to this follow-up question. Use markdown formatting with headers, bullet points, and emphasis. Reference specific points from the original discussion where relevant. Be practical and specific with recommendations."""
+Please provide a detailed, well-formatted response to this follow-up question in the SAME LANGUAGE as the original question. Use markdown formatting with headers, bullet points, and emphasis. Reference specific points from the original discussion where relevant. Be practical and specific with recommendations."""
 
     try:
         response = await client.chat.completions.create(
