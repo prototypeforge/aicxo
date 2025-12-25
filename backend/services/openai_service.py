@@ -508,10 +508,11 @@ Please provide your professional opinion as the {agent['role']}. Remember to res
         }
         
         # Use appropriate token limit parameter based on model
+        # Increased to 4000 to prevent truncation on complex responses
         if uses_max_completion_tokens(model):
-            request_params["max_completion_tokens"] = 2000
+            request_params["max_completion_tokens"] = 4000
         else:
-            request_params["max_tokens"] = 2000
+            request_params["max_tokens"] = 4000
         
         if use_json_mode:
             request_params["response_format"] = {"type": "json_object"}
@@ -520,6 +521,7 @@ Please provide your professional opinion as the {agent['role']}. Remember to res
             "model": model,
             "temperature": 0.7,
             "json_mode": use_json_mode,
+            "max_tokens": 4000,
             "system_prompt_length": len(system_message),
             "user_content_type": "multipart" if image_parts else "text",
             "user_text_length": len(user_text)
@@ -572,21 +574,60 @@ Please provide your professional opinion as the {agent['role']}. Remember to res
                 raise ValueError(f"Model refused to respond: {refusal}")
             raise ValueError(f"Model returned an empty response. Finish reason: {finish_reason}")
         
+        # Warn if response was truncated
+        if finish_reason == "length":
+            add_debug_log(agent_id, agent_name, "warning", "Response was truncated due to token limit", {
+                "response_length": len(response_text),
+                "response_preview": response_text[:300] if len(response_text) > 300 else response_text
+            })
+        
         add_debug_log(agent_id, agent_name, "info", "Parsing response", {
-            "response_preview": response_text[:200] if len(response_text) > 200 else response_text
+            "response_preview": response_text[:200] if len(response_text) > 200 else response_text,
+            "finish_reason": finish_reason
         })
+        
+        # Try to parse JSON, handling truncated responses
+        result = None
+        parse_error = None
         
         if use_json_mode:
             try:
                 result = json.loads(response_text)
             except json.JSONDecodeError as json_err:
-                add_debug_log(agent_id, agent_name, "error", "JSON parsing failed in JSON mode", {
+                parse_error = json_err
+                add_debug_log(agent_id, agent_name, "warning", "JSON parsing failed in JSON mode, trying to extract", {
                     "error": str(json_err),
                     "raw_response": response_text[:500]
                 })
-                raise
-        else:
+        
+        # If JSON mode parsing failed or not in JSON mode, try to extract
+        if result is None:
             result = extract_json_from_text(response_text)
+            
+            # If we still couldn't parse and it was truncated, try to fix common truncation issues
+            if finish_reason == "length" and (not result.get('opinion') or result.get('opinion', '').startswith('Response was not')):
+                add_debug_log(agent_id, agent_name, "warning", "Attempting to salvage truncated response")
+                # Try to extract whatever partial content we can
+                try:
+                    # Try adding closing braces to truncated JSON
+                    fixed_text = response_text.rstrip()
+                    if not fixed_text.endswith('}'):
+                        # Count open vs close braces
+                        open_braces = fixed_text.count('{')
+                        close_braces = fixed_text.count('}')
+                        missing_braces = open_braces - close_braces
+                        if missing_braces > 0:
+                            # Try to close any open strings first
+                            if fixed_text.count('"') % 2 == 1:
+                                fixed_text += '"'
+                            fixed_text += '}' * missing_braces
+                            try:
+                                result = json.loads(fixed_text)
+                                add_debug_log(agent_id, agent_name, "info", "Successfully salvaged truncated JSON")
+                            except:
+                                pass
+                except:
+                    pass
         
         # Validate we got the expected fields
         opinion = result.get('opinion', '')
@@ -726,10 +767,11 @@ Please synthesize these opinions and provide your recommendation as Chair of the
         }
         
         # Use appropriate token limit parameter based on model
+        # Increased to 6000 for chair summary as it synthesizes all opinions
         if uses_max_completion_tokens(model):
-            request_params["max_completion_tokens"] = 3000
+            request_params["max_completion_tokens"] = 6000
         else:
-            request_params["max_tokens"] = 3000
+            request_params["max_tokens"] = 6000
         
         if use_json_mode:
             request_params["response_format"] = {"type": "json_object"}
@@ -737,6 +779,7 @@ Please synthesize these opinions and provide your recommendation as Chair of the
         add_debug_log("chair", chair_name, "info", "Sending chair summary request to OpenAI", {
             "model": model,
             "json_mode": use_json_mode,
+            "max_tokens": 6000,
             "opinions_text_length": len(opinions_text)
         })
         
