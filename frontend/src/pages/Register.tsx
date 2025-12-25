@@ -74,7 +74,7 @@ export default function Register() {
             <Crown className="w-10 h-10 text-obsidian-950" />
           </motion.div>
           <h1 className="font-display text-3xl font-bold text-white">Create Account</h1>
-          <p className="text-obsidian-400 mt-2">Join AI CxO to build your digital board</p>
+          <p className="text-obsidian-400 mt-2">Join CxO Ninja to build your digital C-Suite</p>
         </div>
 
         <div className="glass rounded-3xl p-8">

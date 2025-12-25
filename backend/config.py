@@ -12,13 +12,13 @@ class Settings(BaseSettings):
     # PostgreSQL Database
     postgres_host: str = "localhost"
     postgres_port: int = 5432
-    postgres_user: str = "aicxo_user"
+    postgres_user: str = "cxoninja_user"
     postgres_password: str = "your_secure_password"
-    postgres_db: str = "aicxo_users"
+    postgres_db: str = "cxoninja_users"
 
     # MongoDB Database
     mongo_uri: str = "mongodb://localhost:27017"
-    mongo_db: str = "aicxo_documents"
+    mongo_db: str = "cxoninja_documents"
     mongo_user: Optional[str] = None
     mongo_password: Optional[str] = None
 
@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     backend_port: int = 8000
     
     # Default Admin User
-    default_admin_email: str = "admin@aicxo.com"
+    default_admin_email: str = "admin@cxo.ninja"
     default_admin_username: str = "admin"
     default_admin_password: str = "admin123"
     

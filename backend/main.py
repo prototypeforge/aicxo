@@ -19,8 +19,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="AI CxO - Digital Board of Directors",
-    description="AI-powered Board of Directors for strategic decision making",
+    title="CxO Ninja - Your Digital C-Suite",
+    description="Your digital C-Suite for strategic decision making",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -192,7 +192,7 @@ Be balanced, fair, and decisive. Your recommendation should be practical and act
 @app.get("/")
 async def root():
     return {
-        "name": "AI CxO - Digital Board of Directors",
+        "name": "CxO Ninja - Your Digital C-Suite",
         "version": "1.0.0",
         "docs": "/docs"
     }

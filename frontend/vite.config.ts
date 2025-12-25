@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon.png'],
       manifest: {
-        name: 'AI CxO - Digital Board of Directors',
-        short_name: 'AI CxO',
-        description: 'AI-powered Board of Directors for strategic decision making',
+        name: 'CxO Ninja - Your Digital C-Suite',
+        short_name: 'CxO Ninja',
+        description: 'Your digital C-Suite for strategic decision making',
         theme_color: '#0f0f23',
         background_color: '#0f0f23',
         display: 'standalone',

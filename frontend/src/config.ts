@@ -11,10 +11,10 @@ export const config = {
   apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '',
   
   // Application name
-  appName: import.meta.env.VITE_APP_NAME || 'AI CxO',
+  appName: import.meta.env.VITE_APP_NAME || 'CxO Ninja',
   
   // Application tagline
-  appTagline: import.meta.env.VITE_APP_TAGLINE || 'Digital Board of Directors',
+  appTagline: import.meta.env.VITE_APP_TAGLINE || 'Your Digital C-Suite',
   
   // Environment
   isDevelopment: import.meta.env.DEV,

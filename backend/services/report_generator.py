@@ -1,5 +1,5 @@
 """
-Report generation service for creating PDF and DOCX exports of board meeting reports.
+Report generation service for creating PDF and DOCX exports of C-Suite meeting reports.
 Supports two styles: colorful (matching the app UI with dark background) and professional (formal report style).
 """
 import io
@@ -393,7 +393,7 @@ async def generate_pdf_report(
     story = []
     
     # Title
-    story.append(Paragraph("Board Meeting Report", title_style))
+    story.append(Paragraph("CxO Ninja Meeting Report", title_style))
     story.append(Spacer(1, 0.2*inch))
     
     # Meeting metadata
@@ -565,11 +565,11 @@ async def generate_docx_report(
     
     # Set document properties
     core_props = doc.core_properties
-    core_props.title = "Board Meeting Report"
-    core_props.author = "AI Board of Directors"
+    core_props.title = "CxO Ninja Meeting Report"
+    core_props.author = "CxO Ninja - Your Digital C-Suite"
     
     # Title
-    title = doc.add_heading("Board Meeting Report", 0)
+    title = doc.add_heading("CxO Ninja Meeting Report", 0)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     for run in title.runs:
         run.font.color.rgb = colors_scheme["primary"]

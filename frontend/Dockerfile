@@ -5,8 +5,8 @@ WORKDIR /app
 
 # Build arguments for environment variables
 ARG VITE_API_BASE_URL=""
-ARG VITE_APP_NAME="AI CxO"
-ARG VITE_APP_TAGLINE="Digital Board of Directors"
+ARG VITE_APP_NAME="CxO Ninja"
+ARG VITE_APP_TAGLINE="Your Digital C-Suite"
 
 # Set environment variables for build
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL

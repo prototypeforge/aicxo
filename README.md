@@ -1,8 +1,8 @@
-# AI CxO - Digital Board of Directors
+# CxO Ninja - Your Digital C-Suite
 
-An AI-powered Board of Directors application that allows users to consult with a team of AI executives (CFO, CTO, CPO, etc.) on strategic business questions. Each AI agent forms their own opinion based on their expertise, and a Chair of the Board synthesizes all perspectives into a unified recommendation.
+Your digital C-Suite that allows users to consult with a team of AI executives (CFO, CTO, CPO, etc.) on strategic business questions. Each AI agent forms their own opinion based on their expertise, and a Chair synthesizes all perspectives into a unified recommendation.
 
-![AI CxO](https://img.shields.io/badge/AI-CxO-gold?style=for-the-badge)
+![CxO Ninja](https://img.shields.io/badge/CxO-Ninja-gold?style=for-the-badge)
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?style=flat-square)
 ![React](https://img.shields.io/badge/React-18-61dafb?style=flat-square)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688?style=flat-square)
@@ -11,11 +11,11 @@ An AI-powered Board of Directors application that allows users to consult with a
 ## Features
 
 ### For Users
-- **Hire AI Executives**: Build your own board by selecting from available AI agents (CFO, CTO, CPO, COO, CHRO, Architect, etc.)
-- **Board Meetings**: Ask strategic questions and receive opinions from each board member
-- **Meeting Notes**: Access complete records of all board deliberations with individual opinions and reasoning
+- **Hire AI Executives**: Build your own C-Suite by selecting from available AI agents (CFO, CTO, CPO, COO, CHRO, Architect, etc.)
+- **C-Suite Meetings**: Ask strategic questions and receive opinions from each executive
+- **Meeting Notes**: Access complete records of all C-Suite deliberations with individual opinions and reasoning
 - **Company Context**: Upload financial statements, presentations, and other documents to provide context for better advice
-- **Chair's Summary**: Get synthesized recommendations from the Chair of the Board based on all opinions
+- **Chair's Summary**: Get synthesized recommendations from the Chair based on all opinions
 
 ### For Administrators
 - **User Management**: Create, activate/deactivate, and manage user accounts
@@ -55,7 +55,7 @@ The entire application is containerized and managed through Docker Compose. This
 1. **Clone the repository**:
 ```bash
 git clone <repository-url>
-cd AICxO
+cd cxo-ninja
 ```
 
 2. **Start all services**:
@@ -117,9 +117,9 @@ You can customize the deployment by setting environment variables. Create a `.en
 SECRET_KEY=your-super-secret-key-change-in-production
 
 # Optional: Override default database credentials
-POSTGRES_USER=aicxo_user
-POSTGRES_PASSWORD=aicxo_password
-POSTGRES_DB=aicxo_users
+POSTGRES_USER=cxoninja_user
+POSTGRES_PASSWORD=cxoninja_password
+POSTGRES_DB=cxoninja_users
 ```
 
 ## Development Setup (Without Docker)
@@ -139,9 +139,9 @@ export POSTGRES_HOST=localhost
 export POSTGRES_PORT=5432
 export POSTGRES_USER=your_user
 export POSTGRES_PASSWORD=your_password
-export POSTGRES_DB=aicxo_users
+export POSTGRES_DB=cxoninja_users
 export MONGO_URI=mongodb://localhost:27017
-export MONGO_DB=aicxo_documents
+export MONGO_DB=cxoninja_documents
 export SECRET_KEY=your-secret-key
 
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
@@ -158,7 +158,7 @@ npm run dev
 ## Project Structure
 
 ```
-AICxO/
+cxo-ninja/
 ├── backend/
 │   ├── auth/           # Authentication & security
 │   ├── database/       # Database connections
@@ -204,10 +204,10 @@ The system comes with 6 pre-configured AI executives:
 
 ## How It Works
 
-1. **User asks a question** to their board of directors
-2. **Each hired agent** analyzes the question using their system prompt and expertise weights
-3. **Agents form opinions** with reasoning and confidence levels
-4. **Chair of the Board** synthesizes all opinions into a comprehensive summary
+1. **User asks a question** to their digital C-Suite
+2. **Each hired executive** analyzes the question using their system prompt and expertise weights
+3. **Executives form opinions** with reasoning and confidence levels
+4. **Chair** synthesizes all opinions into a comprehensive summary
 5. **Final recommendation** is presented based on collective wisdom
 
 ## API Endpoints

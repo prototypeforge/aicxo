@@ -82,8 +82,8 @@ export default function Dashboard() {
         </h1>
         <p className="text-obsidian-400 mt-2">
           {user?.company_name
-            ? `Managing ${user.company_name}'s digital board of directors`
-            : 'Your AI-powered advisory board is ready to assist'}
+            ? `Managing ${user.company_name}'s digital C-Suite`
+            : 'Your AI-powered executive team is ready to assist'}
         </p>
       </motion.div>
 
@@ -92,7 +92,7 @@ export default function Dashboard() {
         <Link to="/meetings">
           <Button size="lg">
             <Plus className="w-5 h-5" />
-            New Board Meeting
+            New Meeting
           </Button>
         </Link>
         <Link to="/board">

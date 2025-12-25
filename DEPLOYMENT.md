@@ -1,6 +1,6 @@
-# AI CxO - Deployment Guide
+# CxO Ninja - Deployment Guide
 
-This guide covers deploying AI CxO to production environments.
+This guide covers deploying CxO Ninja to production environments.
 
 ## Table of Contents
 - [Quick Start (Development)](#quick-start-development)
@@ -19,7 +19,7 @@ This guide covers deploying AI CxO to production environments.
 ```bash
 # Clone and start with defaults
 git clone <repository-url>
-cd aicxo
+cd cxo-ninja
 docker-compose up -d
 
 # Access at http://localhost:3000
@@ -51,8 +51,8 @@ POSTGRES_PASSWORD=your-secure-postgres-password
 MONGO_PASSWORD=your-secure-mongo-password
 
 # Your domain
-APP_URL=https://aicxo.yourdomain.com
-CORS_ORIGINS=https://aicxo.yourdomain.com
+APP_URL=https://cxo.ninja
+CORS_ORIGINS=https://cxo.ninja
 
 # Secure admin credentials
 DEFAULT_ADMIN_PASSWORD=your-secure-admin-password
@@ -113,16 +113,16 @@ curl http://localhost:3000/health
 |----------|-------------|---------|
 | `POSTGRES_HOST` | Database host | `postgres` |
 | `POSTGRES_PORT` | Database port | `5432` |
-| `POSTGRES_USER` | Database user | `aicxo_user` |
-| `POSTGRES_PASSWORD` | Database password | `aicxo_password` |
-| `POSTGRES_DB` | Database name | `aicxo_users` |
+| `POSTGRES_USER` | Database user | `cxoninja_user` |
+| `POSTGRES_PASSWORD` | Database password | `cxoninja_password` |
+| `POSTGRES_DB` | Database name | `cxoninja_users` |
 
 ### MongoDB Settings
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `MONGO_URI` | MongoDB connection URI | `mongodb://mongodb:27017` |
-| `MONGO_DB` | Database name | `aicxo_documents` |
+| `MONGO_DB` | Database name | `cxoninja_documents` |
 | `MONGO_USER` | MongoDB user (optional) | - |
 | `MONGO_PASSWORD` | MongoDB password (optional) | - |
 
@@ -146,7 +146,7 @@ curl http://localhost:3000/health
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DEFAULT_ADMIN_EMAIL` | Admin email | `admin@aicxo.com` |
+| `DEFAULT_ADMIN_EMAIL` | Admin email | `admin@cxo.ninja` |
 | `DEFAULT_ADMIN_USERNAME` | Admin username | `admin` |
 | `DEFAULT_ADMIN_PASSWORD` | Admin password (**change!**) | `admin123` |
 
@@ -161,11 +161,11 @@ curl http://localhost:3000/health
 apt-get install certbot
 
 # Obtain certificate
-certbot certonly --standalone -d aicxo.yourdomain.com
+certbot certonly --standalone -d cxo.ninja
 
 # Certificates will be at:
-# /etc/letsencrypt/live/aicxo.yourdomain.com/fullchain.pem
-# /etc/letsencrypt/live/aicxo.yourdomain.com/privkey.pem
+# /etc/letsencrypt/live/cxo.ninja/fullchain.pem
+# /etc/letsencrypt/live/cxo.ninja/privkey.pem
 ```
 
 Update `docker-compose.prod.yml`:
@@ -173,8 +173,8 @@ Update `docker-compose.prod.yml`:
 frontend:
   volumes:
     - ./nginx/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
-    - /etc/letsencrypt/live/aicxo.yourdomain.com/fullchain.pem:/etc/ssl/certs/fullchain.pem:ro
-    - /etc/letsencrypt/live/aicxo.yourdomain.com/privkey.pem:/etc/ssl/private/privkey.pem:ro
+    - /etc/letsencrypt/live/cxo.ninja/fullchain.pem:/etc/ssl/certs/fullchain.pem:ro
+    - /etc/letsencrypt/live/cxo.ninja/privkey.pem:/etc/ssl/private/privkey.pem:ro
 ```
 
 Update `nginx/nginx.prod.conf` - uncomment SSL lines:
@@ -195,8 +195,8 @@ services:
       - "3000:80"  # Internal port only, proxy handles SSL
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.aicxo.rule=Host(`aicxo.yourdomain.com`)"
-      - "traefik.http.routers.aicxo.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.cxoninja.rule=Host(`cxo.ninja`)"
+      - "traefik.http.routers.cxoninja.tls.certresolver=letsencrypt"
 ```
 
 ---
@@ -238,7 +238,7 @@ docker-compose -f docker-compose.yml -f docker-compose.scale.yml up -d
 Update connection strings in `.env`:
 ```env
 POSTGRES_HOST=your-rds-endpoint.amazonaws.com
-MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/aicxo
+MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/cxoninja
 ```
 
 ---
@@ -249,22 +249,22 @@ MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/aicxo
 
 ```bash
 # Backup
-docker exec aicxo-postgres pg_dump -U aicxo_user aicxo_users > backup_postgres_$(date +%Y%m%d).sql
+docker exec cxoninja-postgres pg_dump -U cxoninja_user cxoninja_users > backup_postgres_$(date +%Y%m%d).sql
 
 # Restore
-cat backup_postgres_20241224.sql | docker exec -i aicxo-postgres psql -U aicxo_user aicxo_users
+cat backup_postgres_20241224.sql | docker exec -i cxoninja-postgres psql -U cxoninja_user cxoninja_users
 ```
 
 ### MongoDB Backup
 
 ```bash
 # Backup
-docker exec aicxo-mongodb mongodump --db aicxo_documents --out /tmp/backup
-docker cp aicxo-mongodb:/tmp/backup ./backup_mongo_$(date +%Y%m%d)
+docker exec cxoninja-mongodb mongodump --db cxoninja_documents --out /tmp/backup
+docker cp cxoninja-mongodb:/tmp/backup ./backup_mongo_$(date +%Y%m%d)
 
 # Restore
-docker cp ./backup_mongo_20241224 aicxo-mongodb:/tmp/restore
-docker exec aicxo-mongodb mongorestore --db aicxo_documents /tmp/restore/aicxo_documents
+docker cp ./backup_mongo_20241224 cxoninja-mongodb:/tmp/restore
+docker exec cxoninja-mongodb mongorestore --db cxoninja_documents /tmp/restore/cxoninja_documents
 ```
 
 ### Automated Backups
@@ -272,16 +272,16 @@ docker exec aicxo-mongodb mongorestore --db aicxo_documents /tmp/restore/aicxo_d
 Create a cron job for daily backups:
 
 ```bash
-# /etc/cron.daily/aicxo-backup
+# /etc/cron.daily/cxoninja-backup
 #!/bin/bash
-BACKUP_DIR=/var/backups/aicxo
+BACKUP_DIR=/var/backups/cxoninja
 mkdir -p $BACKUP_DIR
 
 # PostgreSQL
-docker exec aicxo-postgres pg_dump -U aicxo_user aicxo_users > $BACKUP_DIR/postgres_$(date +%Y%m%d).sql
+docker exec cxoninja-postgres pg_dump -U cxoninja_user cxoninja_users > $BACKUP_DIR/postgres_$(date +%Y%m%d).sql
 
 # MongoDB
-docker exec aicxo-mongodb mongodump --db aicxo_documents --archive > $BACKUP_DIR/mongo_$(date +%Y%m%d).archive
+docker exec cxoninja-mongodb mongodump --db cxoninja_documents --archive > $BACKUP_DIR/mongo_$(date +%Y%m%d).archive
 
 # Keep last 7 days
 find $BACKUP_DIR -mtime +7 -delete
@@ -349,10 +349,10 @@ docker-compose up -d
 docker-compose ps
 
 # Test PostgreSQL connection
-docker exec -it aicxo-postgres psql -U aicxo_user -d aicxo_users -c "SELECT 1"
+docker exec -it cxoninja-postgres psql -U cxoninja_user -d cxoninja_users -c "SELECT 1"
 
 # Test MongoDB connection
-docker exec -it aicxo-mongodb mongosh --eval "db.adminCommand('ping')"
+docker exec -it cxoninja-mongodb mongosh --eval "db.adminCommand('ping')"
 ```
 
 ### API returns 401/403 errors
@@ -398,7 +398,7 @@ docker-compose up -d --build
 docker-compose logs -f
 
 # Shell into container
-docker exec -it aicxo-backend bash
+docker exec -it cxoninja-backend bash
 
 # Update single service
 docker-compose up -d --build backend

@@ -410,7 +410,7 @@ export default function MeetingDetail() {
               )}
             </div>
             <h1 className="text-2xl lg:text-3xl font-display font-bold text-white">
-              Board Meeting Notes
+              Meeting Notes
             </h1>
           </div>
           <div className="flex gap-2 flex-wrap">

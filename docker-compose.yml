@@ -4,19 +4,19 @@ services:
   # PostgreSQL Database for User Management
   postgres:
     image: postgres:15-alpine
-    container_name: aicxo-postgres
+    container_name: cxoninja-postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-aicxo_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aicxo_password}
-      POSTGRES_DB: ${POSTGRES_DB:-aicxo_users}
+      POSTGRES_USER: ${POSTGRES_USER:-cxoninja_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cxoninja_password}
+      POSTGRES_DB: ${POSTGRES_DB:-cxoninja_users}
     ports:
       - "${POSTGRES_EXTERNAL_PORT:-60432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - aicxo-network
+      - cxoninja-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aicxo_user} -d ${POSTGRES_DB:-aicxo_users}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cxoninja_user} -d ${POSTGRES_DB:-cxoninja_users}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,18 +25,18 @@ services:
   # MongoDB for Document Storage
   mongodb:
     image: mongo:7
-    container_name: aicxo-mongodb
+    container_name: cxoninja-mongodb
     environment:
       # Uncomment for MongoDB authentication
       # MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-}
       # MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-}
-      MONGO_INITDB_DATABASE: ${MONGO_DB:-aicxo_documents}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-cxoninja_documents}
     ports:
       - "${MONGO_EXTERNAL_PORT:-60017}:27017"
     volumes:
       - mongo_data:/data/db
     networks:
-      - aicxo-network
+      - cxoninja-network
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -49,7 +49,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: aicxo-backend
+    container_name: cxoninja-backend
     environment:
       # Application
       - APP_ENV=${APP_ENV:-development}
@@ -58,12 +58,12 @@ services:
       # PostgreSQL
       - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
       - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-      - POSTGRES_USER=${POSTGRES_USER:-aicxo_user}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-aicxo_password}
-      - POSTGRES_DB=${POSTGRES_DB:-aicxo_users}
+      - POSTGRES_USER=${POSTGRES_USER:-cxoninja_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-cxoninja_password}
+      - POSTGRES_DB=${POSTGRES_DB:-cxoninja_users}
       # MongoDB
       - MONGO_URI=${MONGO_URI:-mongodb://mongodb:27017}
-      - MONGO_DB=${MONGO_DB:-aicxo_documents}
+      - MONGO_DB=${MONGO_DB:-cxoninja_documents}
       # Security
       - SECRET_KEY=${SECRET_KEY:-your-super-secret-key-change-in-production}
       - ALGORITHM=${ALGORITHM:-HS256}
@@ -72,7 +72,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - DEFAULT_AI_MODEL=${DEFAULT_AI_MODEL:-gpt-4o-mini}
       # Default Admin
-      - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL:-admin@aicxo.com}
+      - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL:-admin@cxo.ninja}
       - DEFAULT_ADMIN_USERNAME=${DEFAULT_ADMIN_USERNAME:-admin}
       - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-admin123}
       # Logging
@@ -83,7 +83,7 @@ services:
       - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-10}
       - ALLOWED_EXTENSIONS=${ALLOWED_EXTENSIONS:-.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.pptx,.ppt}
     networks:
-      - aicxo-network
+      - cxoninja-network
     depends_on:
       postgres:
         condition: service_healthy
@@ -98,20 +98,20 @@ services:
       dockerfile: Dockerfile
       args:
         - VITE_API_BASE_URL=${VITE_API_BASE_URL:-}
-    container_name: aicxo-frontend
+    container_name: cxoninja-frontend
     environment:
       - BACKEND_HOST=${BACKEND_HOST:-backend}
       - BACKEND_PORT=${BACKEND_PORT:-58000}
     ports:
       - "${FRONTEND_PORT:-53000}:80"
     networks:
-      - aicxo-network
+      - cxoninja-network
     depends_on:
       - backend
     restart: unless-stopped
 
 networks:
-  aicxo-network:
+  cxoninja-network:
     driver: bridge
 
 volumes:

@@ -66,8 +66,8 @@ export default function Login() {
           >
             <Crown className="w-10 h-10 text-obsidian-950" />
           </motion.div>
-          <h1 className="font-display text-3xl font-bold text-white">AI CxO</h1>
-          <p className="text-obsidian-400 mt-2">Your Digital Board of Directors</p>
+          <h1 className="font-display text-3xl font-bold text-white">CxO Ninja</h1>
+          <p className="text-obsidian-400 mt-2">Your Digital C-Suite</p>
         </div>
 
         <div className="glass rounded-3xl p-8">

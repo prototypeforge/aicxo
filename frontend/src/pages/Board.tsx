@@ -68,10 +68,10 @@ export default function Board() {
         className="mb-8"
       >
         <h1 className="text-2xl lg:text-3xl font-display font-bold text-white">
-          Your Board of Directors
+          Your C-Suite
         </h1>
         <p className="text-obsidian-400 mt-2">
-          Hire and manage your AI executive team
+          Hire and manage your digital executive team
         </p>
       </motion.div>
 

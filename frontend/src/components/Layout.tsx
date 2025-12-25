@@ -23,7 +23,7 @@ interface LayoutProps {
 
 const navItems = [
   { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { path: '/board', icon: Users, label: 'My Board' },
+  { path: '/board', icon: Users, label: 'My C-Suite' },
   { path: '/meetings', icon: MessageSquare, label: 'Meetings' },
   { path: '/files', icon: FileText, label: 'Company Files' },
   { path: '/billing', icon: DollarSign, label: 'Usage & Billing' },
@@ -59,8 +59,8 @@ export default function Layout({ children }: LayoutProps) {
               <Crown className="w-6 h-6 text-obsidian-950" />
             </div>
             <div>
-              <h1 className="font-display text-xl font-bold text-white">AI CxO</h1>
-              <p className="text-xs text-obsidian-400">Digital Board of Directors</p>
+              <h1 className="font-display text-xl font-bold text-white">CxO Ninja</h1>
+              <p className="text-xs text-obsidian-400">Your Digital C-Suite</p>
             </div>
           </Link>
         </div>
@@ -145,7 +145,7 @@ export default function Layout({ children }: LayoutProps) {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center">
               <Crown className="w-5 h-5 text-obsidian-950" />
             </div>
-            <span className="font-display font-bold text-white">AI CxO</span>
+            <span className="font-display font-bold text-white">CxO Ninja</span>
           </Link>
           <button
             onClick={() => setMobileMenuOpen(true)}
